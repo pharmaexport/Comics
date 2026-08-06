@@ -4,6 +4,14 @@
 
   const stage = document.getElementById('panelStage');
   const image = document.getElementById('panelImage');
+  const pdfFrame = document.getElementById('pdfFrame');
+  const readerMode = document.getElementById('readerMode');
+  const pdfControls = document.getElementById('pdfControls');
+  const pdfUrl = document.getElementById('pdfUrl');
+  const loadPdfButton = document.getElementById('loadPdfButton');
+  const comicProgress = document.getElementById('comicProgress');
+  const comicControls = document.getElementById('comicControls');
+  const zoomPanel = document.getElementById('zoomPanel');
   const emptyState = document.getElementById('emptyState');
   const previousButton = document.getElementById('previousButton');
   const nextButton = document.getElementById('nextButton');
@@ -56,46 +64,33 @@
   }
 
   function getTargetRect(panel) {
-    if (showWholePage || !panel.crop) {
-      return { x: 0, y: 0, width: 100, height: 100 };
-    }
+    if (showWholePage || !panel.crop) return { x: 0, y: 0, width: 100, height: 100 };
     return panel.crop;
   }
 
   function computeBaseTransform() {
     if (!imageReady || !panels.length) return;
-
     const panel = panels[currentIndex];
     const crop = getTargetRect(panel);
     const sw = stage.clientWidth;
     const sh = stage.clientHeight;
     const iw = image.naturalWidth;
     const ih = image.naturalHeight;
-
     const cropX = (crop.x / 100) * iw;
     const cropY = (crop.y / 100) * ih;
     const cropW = (crop.width / 100) * iw;
     const cropH = (crop.height / 100) * ih;
-
     const padding = 16;
-    const availableW = Math.max(sw - padding * 2, 1);
-    const availableH = Math.max(sh - padding * 2, 1);
-    baseScale = Math.min(availableW / cropW, availableH / cropH);
-
-    const displayedW = cropW * baseScale;
-    const displayedH = cropH * baseScale;
-    baseX = (sw - displayedW) / 2 - cropX * baseScale;
-    baseY = (sh - displayedH) / 2 - cropY * baseScale;
+    baseScale = Math.min(Math.max(sw - padding * 2, 1) / cropW, Math.max(sh - padding * 2, 1) / cropH);
+    baseX = (sw - cropW * baseScale) / 2 - cropX * baseScale;
+    baseY = (sh - cropH * baseScale) / 2 - cropY * baseScale;
   }
 
   function applyTransform() {
     if (!imageReady) return;
-    const scale = baseScale * userZoom;
-    const x = baseX + panX;
-    const y = baseY + panY;
     image.style.width = `${image.naturalWidth}px`;
     image.style.height = `${image.naturalHeight}px`;
-    image.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+    image.style.transform = `translate3d(${baseX + panX}px, ${baseY + panY}px, 0) scale(${baseScale * userZoom})`;
   }
 
   function resetView() {
@@ -116,7 +111,6 @@
     progressBar.max = Math.max(panels.length, 1);
     progressBar.value = hasPanels ? currentIndex + 1 : 0;
     progressLabel.textContent = hasPanels ? `Case ${currentIndex + 1} sur ${panels.length}` : 'Case 0 sur 0';
-
     if (!hasPanels) return;
 
     const panel = panels[currentIndex];
@@ -143,6 +137,49 @@
     render();
   }
 
+  function normalizedPdfUrl(value) {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    try {
+      const url = new URL(trimmed, window.location.href);
+      if (!['http:', 'https:'].includes(url.protocol)) return '';
+      return url.href;
+    } catch {
+      return '';
+    }
+  }
+
+  function loadPdf() {
+    const url = normalizedPdfUrl(pdfUrl.value);
+    if (!url) {
+      pdfUrl.setCustomValidity('Saisissez une adresse PDF HTTP ou HTTPS valide.');
+      pdfUrl.reportValidity();
+      return;
+    }
+    pdfUrl.setCustomValidity('');
+    pdfFrame.src = url;
+  }
+
+  function setReaderMode(mode) {
+    const pdfMode = mode === 'pdf';
+    readerMode.value = pdfMode ? 'pdf' : 'comic';
+    pdfControls.hidden = !pdfMode;
+    pdfFrame.hidden = !pdfMode;
+    image.hidden = pdfMode || panels.length === 0;
+    comicProgress.hidden = pdfMode;
+    comicControls.hidden = pdfMode;
+    zoomPanel.hidden = pdfMode;
+    emptyState.hidden = pdfMode || panels.length > 0;
+    stage.classList.toggle('pdf-mode', pdfMode);
+    if (pdfMode && !pdfFrame.src) loadPdf();
+    if (!pdfMode) render();
+  }
+
+  readerMode.addEventListener('change', event => setReaderMode(event.target.value));
+  loadPdfButton.addEventListener('click', loadPdf);
+  pdfUrl.addEventListener('keydown', event => {
+    if (event.key === 'Enter') loadPdf();
+  });
   previousButton.addEventListener('click', () => goTo(currentIndex - 1));
   nextButton.addEventListener('click', () => goTo(currentIndex + 1));
   zoomRange.addEventListener('input', event => setZoom(Number(event.target.value) / 100));
@@ -164,6 +201,10 @@
     }
   });
 
+  document.addEventListener('fullscreenchange', () => {
+    fullscreenButton.textContent = document.fullscreenElement ? 'Quitter le plein écran' : 'Plein écran';
+  });
+
   helpButton.addEventListener('click', () => {
     const open = helpPanel.hidden;
     helpPanel.hidden = !open;
@@ -171,28 +212,23 @@
   });
 
   function distance(touches) {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.hypot(dx, dy);
+    return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
   }
 
   stage.addEventListener('touchstart', event => {
+    if (readerMode.value === 'pdf') return;
     if (event.touches.length === 2) {
       startDistance = distance(event.touches);
       startZoom = userZoom;
       dragStart = null;
       event.preventDefault();
     } else if (event.touches.length === 1) {
-      dragStart = {
-        x: event.touches[0].clientX,
-        y: event.touches[0].clientY,
-        panX,
-        panY
-      };
+      dragStart = { x: event.touches[0].clientX, y: event.touches[0].clientY, panX, panY };
     }
   }, { passive: false });
 
   stage.addEventListener('touchmove', event => {
+    if (readerMode.value === 'pdf') return;
     if (event.touches.length === 2 && startDistance > 0) {
       setZoom(startZoom * (distance(event.touches) / startDistance));
       event.preventDefault();
@@ -209,19 +245,26 @@
     if (event.touches.length === 0) dragStart = null;
   });
 
-  stage.addEventListener('dblclick', resetView);
-  window.addEventListener('resize', resetView);
+  stage.addEventListener('dblclick', () => {
+    if (readerMode.value !== 'pdf') resetView();
+  });
+  window.addEventListener('resize', () => {
+    if (readerMode.value !== 'pdf') resetView();
+  });
 
   document.addEventListener('keydown', event => {
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+    if (event.key.toLowerCase() === 'f') {
+      fullscreenButton.click();
+      return;
+    }
+    if (readerMode.value === 'pdf') return;
     if (event.key === 'ArrowRight' || event.key === ' ') {
       event.preventDefault();
       goTo(currentIndex + 1);
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault();
       goTo(currentIndex - 1);
-    } else if (event.key.toLowerCase() === 'f') {
-      fullscreenButton.click();
     } else if (event.key === '+' || event.key === '=') {
       setZoom(userZoom + 0.2);
     } else if (event.key === '-') {
@@ -229,5 +272,5 @@
     }
   });
 
-  render();
+  setReaderMode('pdf');
 })();
