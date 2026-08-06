@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <title>Regards au Levant — Lecture facilitée</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Lecture facilitée</p>
+      <h1>Regards au Levant</h1>
+    </div>
+    <div class="top-actions">
+      <button id="fullscreenButton" type="button">Plein écran</button>
+      <button id="helpButton" type="button" aria-expanded="false">Aide</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="reader" aria-label="Lecteur de bande dessinée">
+      <div class="panel-stage" id="panelStage" tabindex="0" aria-live="polite">
+        <div class="empty-state" id="emptyState">
+          <strong>Lecteur prêt</strong>
+          <span>Ajoutez les planches dans le dossier <code>images/</code>, puis complétez <code>comics.js</code>.</span>
+        </div>
+        <img id="panelImage" alt="" hidden>
+      </div>
+
+      <div class="progress" aria-label="Progression de lecture">
+        <span id="progressLabel">Case 0 sur 0</span>
+        <progress id="progressBar" max="1" value="0"></progress>
+      </div>
+
+      <nav class="controls" aria-label="Navigation entre les cases">
+        <button id="previousButton" type="button" class="nav-button">← Case précédente</button>
+        <button id="nextButton" type="button" class="nav-button primary">Case suivante →</button>
+      </nav>
+
+      <div class="secondary-controls">
+        <label>
+          Zoom
+          <input id="zoomRange" type="range" min="100" max="220" step="10" value="100">
+        </label>
+        <button id="fitButton" type="button">Ajuster à l’écran</button>
+        <button id="pageButton" type="button">Voir la planche entière</button>
+      </div>
+    </section>
+
+    <aside id="helpPanel" class="help-panel" hidden>
+      <h2>Commandes</h2>
+      <p><kbd>→</kbd> ou <kbd>Espace</kbd> : case suivante</p>
+      <p><kbd>←</kbd> : case précédente</p>
+      <p><kbd>F</kbd> : plein écran</p>
+      <p><kbd>+</kbd> / <kbd>−</kbd> : zoom</p>
+    </aside>
+  </main>
+
+  <script src="comics.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
