@@ -2,63 +2,67 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="theme-color" content="#111111">
-  <title>Comics Reader — Lecture facilitée</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+  <meta name="theme-color" content="#071018">
+  <title>Comics Reader</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">Lecture facilitée</p>
-      <h1>Comics Reader</h1>
-    </div>
-    <div class="top-actions">
-      <button id="fullscreenButton" type="button">Plein écran</button>
+  <header class="appbar">
+    <div class="brand">📖 <strong>Comics Reader</strong></div>
+    <div class="header-actions">
       <button id="helpButton" type="button" aria-expanded="false">Aide</button>
+      <button id="fullscreenButton" type="button">Plein écran</button>
     </div>
   </header>
 
-  <main>
-    <section class="reader" aria-label="Lecteur de bande dessinée">
+  <main class="app-shell">
+    <section class="selectors" aria-label="Choix de lecture">
+      <label><span>Tome</span><select id="volumeSelect"><option>Tome 1</option></select></label>
+      <label><span>Planche</span><select id="pageSelect"><option>Planche 1</option></select></label>
+    </section>
+
+    <section class="reader-card" aria-label="Lecteur de bande dessinée">
       <div class="panel-stage" id="panelStage" tabindex="0" aria-live="polite">
-        <div class="empty-state" id="emptyState">
-          <strong>Chargement de la planche…</strong>
-          <span>Écartez deux doigts pour zoomer, puis faites glisser l’image.</span>
-        </div>
+        <div class="empty-state" id="emptyState" hidden><strong>Aucune planche disponible</strong></div>
         <img id="panelImage" alt="" hidden draggable="false">
       </div>
 
-      <div class="progress" aria-label="Progression de lecture">
+      <div class="progress-block">
         <span id="progressLabel">Case 0 sur 0</span>
         <progress id="progressBar" max="1" value="0"></progress>
       </div>
 
       <nav class="controls" aria-label="Navigation entre les cases">
-        <button id="previousButton" type="button" class="nav-button">← Case précédente</button>
-        <button id="nextButton" type="button" class="nav-button primary">Case suivante →</button>
+        <button id="previousButton" type="button" class="nav-button">←<span>Précédente</span></button>
+        <button id="pageButton" type="button" class="compact-button">▦<span>Voir la planche</span></button>
+        <button id="fitButton" type="button" class="compact-button">☷<span>Ajuster</span></button>
+        <button id="nextButton" type="button" class="nav-button primary">→<span>Suivante</span></button>
       </nav>
+    </section>
 
-      <div class="secondary-controls">
-        <label>
-          Zoom
-          <input id="zoomRange" type="range" min="100" max="400" step="10" value="100">
-        </label>
-        <button id="fitButton" type="button">Réinitialiser le zoom</button>
-        <button id="pageButton" type="button">Voir la planche entière</button>
-      </div>
+    <section class="zoom-panel" aria-label="Réglage du zoom">
+      <span>Zoom</span>
+      <button id="zoomOutButton" type="button" aria-label="Dézoomer">−</button>
+      <input id="zoomRange" type="range" min="100" max="400" step="10" value="100" aria-label="Zoom">
+      <button id="zoomInButton" type="button" aria-label="Zoomer">+</button>
+      <output id="zoomValue">100%</output>
+      <small>Pincez avec deux doigts pour zoomer</small>
     </section>
 
     <aside id="helpPanel" class="help-panel" hidden>
       <h2>Commandes</h2>
-      <p>Deux doigts : zoom tactile</p>
-      <p>Un doigt après zoom : déplacer l’image</p>
-      <p>Double toucher : réinitialiser le zoom</p>
-      <p><kbd>→</kbd> ou <kbd>Espace</kbd> : case suivante</p>
-      <p><kbd>←</kbd> : case précédente</p>
-      <p><kbd>F</kbd> : plein écran</p>
+      <p>Balayez horizontalement ou utilisez les boutons pour changer de case.</p>
+      <p>Pincez avec deux doigts pour zoomer et glissez pour déplacer l’image.</p>
     </aside>
   </main>
+
+  <nav class="bottom-nav" aria-label="Navigation principale">
+    <button class="active">⌂<span>Lecture</span></button>
+    <button>☷<span>Sommaire</span></button>
+    <button>♡<span>Marque-pages</span></button>
+    <button>⚙<span>Paramètres</span></button>
+  </nav>
 
   <script src="comics.js"></script>
   <script src="app.js"></script>
