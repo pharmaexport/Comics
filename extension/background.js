@@ -1,17 +1,25 @@
 const REPO = 'pharmaexport/Comics';
 const CATALOG_PATH = 'catalog.json';
-const DRIVE_FOLDER_ID = '1RPiklCtvPT6nMhqOBlPxeF3YeZVhd4KO';
+const DRIVE_FOLDER_ID = '1wkTA4RodQeSyBhSgnwBLvGqqK1e1umv3';
+const MAX_PARALLEL = 3;
+const MIN_PAGE_WIDTH = 420;
+const MIN_PAGE_HEIGHT = 560;
 
 const textEncoder = new TextEncoder();
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const cleanName = value => (value || 'manga').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
 const slug = value => cleanName(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const b64 = bytes => {
+
+function progress(value, label) {
+  chrome.runtime.sendMessage({ type: 'IMPORT_PROGRESS', value, label }).catch(() => {});
+}
+
+function b64(bytes) {
   let binary = '';
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   return btoa(binary);
-};
+}
 
 async function sha256Base64Url(value) {
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', textEncoder.encode(value)));
@@ -25,6 +33,21 @@ function randomString(size = 64) {
 
 async function getSettings() {
   return chrome.storage.local.get(['googleClientId', 'githubToken', 'googleToken', 'googleTokenExpiresAt']);
+}
+
+async function fetchWithRetry(url, options = {}, attempts = 4) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok || (response.status < 500 && response.status !== 408 && response.status !== 429)) return response;
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(500 * 2 ** attempt + Math.floor(Math.random() * 250));
+  }
+  throw lastError || new Error('Requête impossible.');
 }
 
 async function getGoogleToken() {
@@ -49,38 +72,49 @@ async function getGoogleToken() {
   const code = new URL(redirected).searchParams.get('code');
   if (!code) throw new Error('Autorisation Google annulée.');
 
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+  const tokenRes = await fetchWithRetry('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: settings.googleClientId,
-      code,
-      code_verifier: verifier,
-      grant_type: 'authorization_code',
-      redirect_uri: redirectUri
-    })
+    body: new URLSearchParams({ client_id: settings.googleClientId, code, code_verifier: verifier, grant_type: 'authorization_code', redirect_uri: redirectUri })
   });
   if (!tokenRes.ok) throw new Error(`OAuth Google refusé (${tokenRes.status}).`);
   const token = await tokenRes.json();
-  await chrome.storage.local.set({
-    googleToken: token.access_token,
-    googleTokenExpiresAt: Date.now() + Number(token.expires_in || 3600) * 1000
-  });
+  await chrome.storage.local.set({ googleToken: token.access_token, googleTokenExpiresAt: Date.now() + Number(token.expires_in || 3600) * 1000 });
   return token.access_token;
 }
 
 async function fetchJpeg(url) {
-  const response = await fetch(url, { credentials: 'include', cache: 'no-store' });
+  const response = await fetchWithRetry(url, { credentials: 'include', cache: 'no-store', referrerPolicy: 'no-referrer-when-downgrade' }, 4);
   if (!response.ok) throw new Error(`Image inaccessible (${response.status})`);
-  const bitmap = await createImageBitmap(await response.blob());
+  const blob = await response.blob();
+  if (!blob.type.startsWith('image/')) throw new Error('La ressource reçue n’est pas une image.');
+  const bitmap = await createImageBitmap(blob);
+  if (bitmap.width < MIN_PAGE_WIDTH || bitmap.height < MIN_PAGE_HEIGHT) {
+    bitmap.close();
+    throw new Error('Image trop petite pour être une planche.');
+  }
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext('2d', { alpha: false });
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, bitmap.width, bitmap.height);
   ctx.drawImage(bitmap, 0, 0);
   bitmap.close();
-  const jpeg = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+  const jpeg = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
   return { bytes: new Uint8Array(await jpeg.arrayBuffer()), width: canvas.width, height: canvas.height };
+}
+
+async function mapLimit(items, limit, worker) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  async function run() {
+    while (cursor < items.length) {
+      const index = cursor++;
+      try { results[index] = await worker(items[index], index); }
+      catch (error) { console.warn('Planche ignorée', items[index], error); }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results.filter(Boolean);
 }
 
 function concat(parts) {
@@ -96,10 +130,7 @@ function makePdf(images) {
   const pageIds = [];
   const imageIds = [];
   let nextId = 3;
-  for (let i = 0; i < images.length; i += 1) {
-    pageIds.push(nextId++);
-    imageIds.push(nextId++);
-  }
+  for (let i = 0; i < images.length; i += 1) { pageIds.push(nextId++); imageIds.push(nextId++); }
   objects[1] = textEncoder.encode('<< /Type /Catalog /Pages 2 0 R >>');
   objects[2] = textEncoder.encode(`<< /Type /Pages /Count ${images.length} /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] >>`);
 
@@ -109,11 +140,7 @@ function makePdf(images) {
     const contentId = nextId++;
     const draw = `q\n${img.width} 0 0 ${img.height} 0 0 cm\n/Im${index} Do\nQ\n`;
     objects[pageId] = textEncoder.encode(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${img.width} ${img.height}] /Resources << /XObject << /Im${index} ${imageId} 0 R >> >> /Contents ${contentId} 0 R >>`);
-    objects[imageId] = concat([
-      textEncoder.encode(`<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.bytes.length} >>\nstream\n`),
-      img.bytes,
-      textEncoder.encode('\nendstream')
-    ]);
+    objects[imageId] = concat([textEncoder.encode(`<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.bytes.length} >>\nstream\n`), img.bytes, textEncoder.encode('\nendstream')]);
     objects[contentId] = textEncoder.encode(`<< /Length ${textEncoder.encode(draw).length} >>\nstream\n${draw}endstream`);
   });
 
@@ -138,95 +165,119 @@ function makePdf(images) {
 
 async function uploadDrive(blob, fileName) {
   const token = await getGoogleToken();
-  const init = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink', {
+  const init = await fetchWithRetry('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json; charset=UTF-8',
-      'X-Upload-Content-Type': 'application/pdf',
-      'X-Upload-Content-Length': String(blob.size)
-    },
-    body: JSON.stringify({ name: fileName, parents: [DRIVE_FOLDER_ID] })
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': 'application/pdf', 'X-Upload-Content-Length': String(blob.size) },
+    body: JSON.stringify({ name: fileName, parents: [DRIVE_FOLDER_ID], description: 'Import automatique depuis MyReadingManga via Comics Importer' })
   });
   if (!init.ok) throw new Error(`Création Drive impossible (${init.status}).`);
   const sessionUrl = init.headers.get('Location');
-  const uploaded = await fetch(sessionUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: blob });
+  if (!sessionUrl) throw new Error('Session de téléversement Drive absente.');
+
+  const uploaded = await fetchWithRetry(sessionUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'Content-Length': String(blob.size) }, body: blob }, 4);
   if (!uploaded.ok) throw new Error(`Téléversement Drive impossible (${uploaded.status}).`);
   const file = await uploaded.json();
-  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
+  const permission = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'anyone', role: 'reader' })
-  });
+  }, 3);
+  if (!permission.ok) console.warn('Le fichier a été envoyé, mais le partage public a échoué.', permission.status);
   return file;
+}
+
+function decodeBase64Utf8(value) {
+  const bytes = Uint8Array.from(atob(value.replace(/\n/g, '')), c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function encodeBase64Utf8(value) {
+  return b64(new TextEncoder().encode(value));
 }
 
 async function updateCatalog({ title, driveFile }) {
   const { githubToken } = await getSettings();
   if (!githubToken) throw new Error('Configure d’abord le jeton GitHub dans les options de l’extension.');
   const headers = { Authorization: `Bearer ${githubToken}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
-  const get = await fetch(`https://api.github.com/repos/${REPO}/contents/${CATALOG_PATH}`, { headers });
-  if (!get.ok) throw new Error(`Catalogue GitHub inaccessible (${get.status}).`);
-  const current = await get.json();
-  const decoded = decodeURIComponent(escape(atob(current.content.replace(/\n/g, ''))));
-  const catalog = JSON.parse(decoded);
-  const id = slug(title);
-  const entry = {
-    id,
-    title,
-    volume: '',
-    subtitle: 'Import MyReadingManga',
-    authors: '',
-    format: 'pdf',
-    driveFileId: driveFile.id,
-    driveUrl: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.id}/view`,
-    url: `https://drive.usercontent.google.com/download?id=${driveFile.id}&export=download&confirm=t`
-  };
-  const index = catalog.findIndex(item => item.id === id);
-  if (index >= 0) catalog[index] = entry; else catalog.unshift(entry);
-  const content = btoa(unescape(encodeURIComponent(`${JSON.stringify(catalog, null, 2)}\n`)));
-  const put = await fetch(`https://api.github.com/repos/${REPO}/contents/${CATALOG_PATH}`, {
-    method: 'PUT',
-    headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: `Ajouter ${title} depuis MyReadingManga`, content, sha: current.sha, branch: 'main' })
-  });
-  if (!put.ok) throw new Error(`Mise à jour GitHub impossible (${put.status}).`);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const get = await fetchWithRetry(`https://api.github.com/repos/${REPO}/contents/${CATALOG_PATH}?ref=main`, { headers }, 3);
+    if (!get.ok) throw new Error(`Catalogue GitHub inaccessible (${get.status}).`);
+    const current = await get.json();
+    const catalog = JSON.parse(decodeBase64Utf8(current.content));
+    const id = slug(title);
+    const entry = {
+      id,
+      title,
+      volume: '',
+      subtitle: 'Import MyReadingManga',
+      authors: '',
+      format: 'pdf',
+      driveFileId: driveFile.id,
+      driveUrl: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.id}/view`,
+      url: `https://drive.usercontent.google.com/download?id=${driveFile.id}&export=download&confirm=t`,
+      source: 'myreadingmanga',
+      importedAt: new Date().toISOString()
+    };
+    const index = catalog.findIndex(item => item.id === id);
+    if (index >= 0) catalog[index] = { ...catalog[index], ...entry }; else catalog.unshift(entry);
+
+    const put = await fetch(`https://api.github.com/repos/${REPO}/contents/${CATALOG_PATH}`, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: `Ajouter ${title} depuis MyReadingManga`, content: encodeBase64Utf8(`${JSON.stringify(catalog, null, 2)}\n`), sha: current.sha, branch: 'main' })
+    });
+    if (put.ok) return;
+    if (put.status !== 409 && put.status !== 422) throw new Error(`Mise à jour GitHub impossible (${put.status}).`);
+    await sleep(700 * (attempt + 1));
+  }
+  throw new Error('Le catalogue a changé pendant l’import. Réessaie une fois.');
+}
+
+async function waitForCollection(tabId) {
+  let lastError;
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    await sleep(attempt < 10 ? 400 : 750);
+    try {
+      const result = await chrome.tabs.sendMessage(tabId, { type: 'COLLECT_MRM' });
+      if (result?.ok && Array.isArray(result.images) && result.images.length) return result;
+      if (result?.message) lastError = new Error(result.message);
+    } catch (error) { lastError = error; }
+  }
+  throw lastError || new Error('La page n’a pas pu être analysée. Vérifie Cloudflare puis réessaie.');
 }
 
 async function importMrm(url) {
   const tab = await chrome.tabs.create({ url, active: true });
-  for (let i = 0; i < 60; i += 1) {
-    await sleep(500);
-    try {
-      const result = await chrome.tabs.sendMessage(tab.id, { type: 'COLLECT_MRM' });
-      if (!result?.ok) continue;
-      const selected = result.images.filter(Boolean);
-      if (!selected.length) throw new Error('Aucune page détectée.');
-      const pages = [];
-      for (let p = 0; p < selected.length; p += 1) {
-        chrome.runtime.sendMessage({ type: 'IMPORT_PROGRESS', value: Math.round((p / selected.length) * 70), label: `Image ${p + 1}/${selected.length}` }).catch(() => {});
-        try { pages.push(await fetchJpeg(selected[p])); } catch (error) { console.warn(error); }
-      }
-      if (!pages.length) throw new Error('Les images n’ont pas pu être téléchargées.');
-      const title = cleanName(result.title);
-      const pdf = makePdf(pages);
-      chrome.runtime.sendMessage({ type: 'IMPORT_PROGRESS', value: 80, label: 'Envoi vers Drive' }).catch(() => {});
-      const driveFile = await uploadDrive(pdf, `${title}.pdf`);
-      chrome.runtime.sendMessage({ type: 'IMPORT_PROGRESS', value: 92, label: 'Mise à jour GitHub' }).catch(() => {});
-      await updateCatalog({ title, driveFile });
-      chrome.runtime.sendMessage({ type: 'IMPORT_PROGRESS', value: 100, label: 'Import terminé' }).catch(() => {});
-      return { ok: true, message: `${title} a été enregistré dans Drive et ajouté à Comics.` };
-    } catch (error) {
-      if (i === 59) throw error;
-    }
-  }
-  throw new Error('La page n’a pas pu être analysée. Vérifie Cloudflare puis réessaie.');
+  progress(3, 'Ouverture de la publication');
+  const result = await waitForCollection(tab.id);
+  const selected = [...new Set(result.images.filter(Boolean))];
+  if (!selected.length) throw new Error('Aucune planche détectée.');
+
+  let completed = 0;
+  const pages = await mapLimit(selected, MAX_PARALLEL, async (imageUrl, index) => {
+    const page = await fetchJpeg(imageUrl);
+    completed += 1;
+    progress(8 + Math.round((completed / selected.length) * 64), `Planche ${completed}/${selected.length}`);
+    return { ...page, index };
+  });
+  pages.sort((a, b) => a.index - b.index);
+  if (!pages.length) throw new Error('Aucune planche exploitable n’a pu être téléchargée.');
+  if (pages.length < Math.max(2, Math.floor(selected.length * 0.5))) throw new Error(`Import incomplet : seulement ${pages.length}/${selected.length} planches récupérées.`);
+
+  const title = cleanName(result.title);
+  progress(76, 'Création du PDF');
+  const pdf = makePdf(pages);
+  progress(83, 'Envoi vers Drive');
+  const driveFile = await uploadDrive(pdf, `${title}.pdf`);
+  progress(94, 'Mise à jour de la bibliothèque');
+  await updateCatalog({ title, driveFile });
+  progress(100, 'Import terminé');
+  return { ok: true, message: `${title} : ${pages.length} planches enregistrées dans Imports MyReadingManga et ajoutées à Comics.`, driveFileId: driveFile.id };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== 'IMPORT_MRM') return;
-  importMrm(message.url)
-    .then(sendResponse)
-    .catch(error => sendResponse({ ok: false, message: error.message || 'Échec de l’import.' }));
+  importMrm(message.url).then(sendResponse).catch(error => sendResponse({ ok: false, message: error.message || 'Échec de l’import.' }));
   return true;
 });
