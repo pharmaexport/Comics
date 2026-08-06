@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Comics Importer",
-  "version": "0.5.0",
-  "description": "Import automatique MyReadingManga vers le dossier Drive dédié et le catalogue Comics, avec extraction renforcée des images chargées, liées ou embarquées dans les scripts.",
-  "permissions": ["storage", "tabs", "scripting", "identity", "notifications"],
+  "version": "0.6.0",
+  "description": "Import MyReadingManga vers Drive et Comics avec extraction renforcée, reprise réseau, journalisation et diagnostics de qualité.",
+  "permissions": ["storage", "tabs", "scripting", "identity", "notifications", "alarms"],
   "host_permissions": [
     "https://myreadingmanga.info/*",
     "https://*.myreadingmanga.info/*",
