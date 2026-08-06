@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Comics Importer — Configuration</title>
+  <style>
+    body{font:16px system-ui;background:#101114;color:#fff;max-width:760px;margin:40px auto;padding:0 20px}label{display:grid;gap:8px;margin:20px 0}input{padding:12px;border-radius:10px;border:1px solid #444;background:#191b20;color:#fff}button{padding:12px 18px;border:0;border-radius:999px;background:#f59e0b;font-weight:800;cursor:pointer}.note{color:#aaa;line-height:1.5}#status{min-height:24px;color:#86efac}
+  </style>
+</head>
+<body>
+  <h1>Comics Importer</h1>
+  <p class="note">Configuration initiale unique. Le Client ID Google sert à autoriser l’envoi vers ton dossier Drive. Le jeton GitHub doit seulement avoir l’autorisation d’écrire le contenu du dépôt <strong>pharmaexport/Comics</strong>.</p>
+  <label>Client ID OAuth Google
+    <input id="googleClientId" placeholder="…apps.googleusercontent.com" autocomplete="off">
+  </label>
+  <label>Jeton GitHub
+    <input id="githubToken" type="password" placeholder="github_pat_…" autocomplete="off">
+  </label>
+  <button id="save" type="button">Enregistrer</button>
+  <p id="status" role="status"></p>
+  <script src="options.js"></script>
+</body>
+</html>
