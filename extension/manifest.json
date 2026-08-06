@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Comics Importer",
-  "version": "0.1.0",
-  "description": "Importe en un clic une publication MyReadingManga vers Google Drive et le catalogue Comics.",
+  "version": "0.2.0",
+  "description": "Import avancé MyReadingManga vers Google Drive et le catalogue Comics, avec détection robuste des pages.",
   "permissions": ["storage", "tabs", "scripting", "identity", "notifications"],
   "host_permissions": [
     "https://myreadingmanga.info/*",
@@ -19,7 +19,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://myreadingmanga.info/*"],
+      "matches": ["https://myreadingmanga.info/*", "https://*.myreadingmanga.info/*"],
       "js": ["content-mrm.js"],
       "run_at": "document_idle"
     }
