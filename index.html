@@ -8,6 +8,8 @@
   <title>Comics Reader</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="modulepreload" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" crossorigin>
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs" as="script" crossorigin>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="kindle-library.css">
 </head>
@@ -45,7 +47,7 @@
             <div class="reader-overlay reader-chrome" id="readerControls">
               <button id="previousButton" type="button" class="round-button" aria-label="Page précédente">←</button>
               <div class="page-control">
-                <div><span id="positionLabel">Page</span> <input id="pageNumber" type="number" min="1" value="1" inputmode="numeric"> <span>sur <b id="pageCount">0</b></span></div>
+                <div><span id="positionLabel">Page</span> <input id="pageNumber" type="number" min="1" value="1" inputmode="numeric"> <span>sur <b id="pageCount">…</b></span></div>
                 <input id="pageSlider" type="range" min="1" max="1" value="1" aria-label="Progression">
               </div>
               <button id="nextButton" type="button" class="round-button primary" aria-label="Page suivante">→</button>
