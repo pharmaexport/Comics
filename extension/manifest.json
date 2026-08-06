@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Comics Importer",
-  "version": "0.3.0",
-  "description": "Import avancé MyReadingManga vers Google Drive et le catalogue Comics, avec détection robuste, stabilisation du chargement et diagnostics.",
+  "version": "0.4.0",
+  "description": "Import MyReadingManga fiable vers le dossier Drive dédié et le catalogue Comics, avec reprise réseau, parallélisme limité et gestion des conflits GitHub.",
   "permissions": ["storage", "tabs", "scripting", "identity", "notifications"],
   "host_permissions": [
     "https://myreadingmanga.info/*",
     "https://*.myreadingmanga.info/*",
     "https://www.googleapis.com/*",
+    "https://oauth2.googleapis.com/*",
     "https://api.github.com/*",
     "https://pharmaexport.github.io/*"
   ],
