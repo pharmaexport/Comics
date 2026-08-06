@@ -1,13 +1,12 @@
 // ==UserScript==
 // @name         Comics - Import MyReadingManga
 // @namespace    https://github.com/pharmaexport/Comics
-// @version      1.0.0
-// @description  Exporte en CBZ les images déjà accessibles dans une page MyReadingManga ouverte dans le navigateur.
+// @version      1.1.0
+// @description  Exporte en PDF les images déjà accessibles dans une page MyReadingManga ouverte dans le navigateur.
 // @match        https://myreadingmanga.info/*
 // @grant        GM_xmlhttpRequest
-// @grant        GM_download
 // @connect      *
-// @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
+// @require      https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js
 // ==/UserScript==
 
 (() => {
@@ -35,6 +34,7 @@
 
   const imageUrls = () => {
     const candidates = [...document.images]
+      .filter(img => (img.naturalWidth || img.width) >= 450 && (img.naturalHeight || img.height) >= 450)
       .map(img => img.currentSrc || img.src || img.dataset.src || img.dataset.lazySrc)
       .filter(Boolean)
       .map(url => new URL(url, location.href).href)
@@ -56,41 +56,60 @@
     });
   });
 
+  const blobToImage = blob => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible')); };
+    image.src = url;
+  });
+
+  const imageToJpeg = image => {
+    const maxWidth = 1800;
+    const scale = Math.min(1, maxWidth / image.naturalWidth);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext('2d', { alpha: false });
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return { data: canvas.toDataURL('image/jpeg', 0.88), width: canvas.width, height: canvas.height };
+  };
+
   button.addEventListener('click', async () => {
     button.disabled = true;
     try {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       await new Promise(resolve => setTimeout(resolve, 2500));
       const urls = imageUrls();
-      if (!urls.length) throw new Error('Aucune image détectée. Fais défiler toute la page puis réessaie.');
+      if (!urls.length) throw new Error('Aucune grande image détectée. Fais défiler toute la page puis réessaie.');
 
-      const zip = new JSZip();
+      let pdf = null;
       let saved = 0;
       for (let index = 0; index < urls.length; index += 1) {
-        setStatus(`Téléchargement ${index + 1}/${urls.length}…`);
+        setStatus(`Préparation de la page ${index + 1}/${urls.length}…`);
         try {
           const blob = await fetchBlob(urls[index]);
-          const type = blob.type || '';
-          const extension = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
-          zip.file(`${String(saved + 1).padStart(4, '0')}.${extension}`, blob);
+          const image = await blobToImage(blob);
+          const page = imageToJpeg(image);
+          const orientation = page.width > page.height ? 'landscape' : 'portrait';
+          if (!pdf) {
+            pdf = new window.jspdf.jsPDF({ orientation, unit: 'px', format: [page.width, page.height], compress: true, hotfixes: ['px_scaling'] });
+          } else {
+            pdf.addPage([page.width, page.height], orientation);
+          }
+          pdf.addImage(page.data, 'JPEG', 0, 0, page.width, page.height, undefined, 'FAST');
           saved += 1;
         } catch (error) {
           console.warn('Image ignorée', urls[index], error);
         }
       }
-      if (!saved) throw new Error('Aucune image n’a pu être enregistrée.');
+      if (!pdf || !saved) throw new Error('Aucune page n’a pu être enregistrée.');
 
-      setStatus('Création du CBZ…');
-      const archive = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-      const url = URL.createObjectURL(archive);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${cleanName(document.title)}.cbz`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-      setStatus(`${saved} pages exportées. Importe maintenant le fichier CBZ dans Comics.`);
+      setStatus('Création du PDF…');
+      pdf.save(`${cleanName(document.title)}.pdf`);
+      setStatus(`${saved} pages exportées. Importe maintenant ce PDF dans Comics.`);
     } catch (error) {
       setStatus(error.message || 'Échec de l’export.');
     } finally {
