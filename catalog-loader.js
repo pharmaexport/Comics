@@ -8,6 +8,7 @@
   if (!grid || !continueRow || !search || !sourceUrl || !openUrlButton) return;
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+  const COVER_CACHE = 'comics-cover-cache-v2';
   let catalog = [];
   let activeFilter = 'all';
   let pdfjsPromise = null;
@@ -26,14 +27,20 @@
     openUrlButton.click();
   }
 
+  function immediateCoverUrl(item) {
+    if (item.cover) return item.cover;
+    if (item.driveFileId) return `https://drive.google.com/thumbnail?id=${encodeURIComponent(item.driveFileId)}&sz=w720`;
+    return '';
+  }
+
   function coverMarkup(item) {
     const initials = (item.title || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase();
+    const directCover = immediateCoverUrl(item);
     return `
       <div class="kindle-cover-art" data-seed="${escapeHtml(item.id)}">
         <canvas class="kindle-cover-canvas" data-cover-id="${escapeHtml(item.id)}" aria-label="Couverture de ${escapeHtml(item.title)}"></canvas>
-        <img class="kindle-cover-image" data-cover-id="${escapeHtml(item.id)}" alt="Couverture de ${escapeHtml(item.title)}" hidden>
+        <img class="kindle-cover-image" data-cover-id="${escapeHtml(item.id)}" alt="Couverture de ${escapeHtml(item.title)}"${directCover ? ` src="${escapeHtml(directCover)}"` : ' hidden'}>
         <div class="kindle-cover-fallback"><span>${escapeHtml(initials)}</span><small>${escapeHtml(item.volume ? `TOME ${item.volume}` : item.format.toUpperCase())}</small></div>
-        <div class="kindle-cover-loading" aria-hidden="true"></div>
       </div>`;
   }
 
@@ -72,40 +79,67 @@
     container.classList.toggle('cover-is-canvas', type === 'canvas');
   }
 
+  function cacheKey(item) {
+    return new Request(`${location.origin}/.cover-cache/${encodeURIComponent(item.id)}.jpg`);
+  }
+
+  async function loadCachedCover(item, container) {
+    if (!('caches' in window)) return false;
+    const response = await (await caches.open(COVER_CACHE)).match(cacheKey(item));
+    if (!response) return false;
+    const image = container.querySelector('.kindle-cover-image');
+    if (!image) return false;
+    image.src = URL.createObjectURL(await response.blob());
+    image.hidden = false;
+    showCover(container, 'image');
+    return true;
+  }
+
+  async function saveCanvasCover(item, canvas) {
+    if (!('caches' in window)) return;
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .84));
+    if (!blob) return;
+    await (await caches.open(COVER_CACHE)).put(cacheKey(item), new Response(blob, { headers: { 'Content-Type': 'image/jpeg' } }));
+  }
+
   async function renderPdfCover(item, container) {
     const canvas = container.querySelector('.kindle-cover-canvas');
     if (!canvas) return;
     const module = await pdfjs();
-    const documentTask = module.getDocument({ url: item.url });
-    const document = await documentTask.promise;
+    const document = await module.getDocument({ url: item.url }).promise;
     try {
       const page = await document.getPage(1);
       const base = page.getViewport({ scale: 1 });
-      const targetWidth = Math.max(240, Math.round(container.clientWidth * Math.min(devicePixelRatio || 1, 2)));
+      const targetWidth = Math.max(360, Math.round(container.clientWidth * Math.min(devicePixelRatio || 1, 2)));
       const viewport = page.getViewport({ scale: targetWidth / base.width });
       canvas.width = Math.ceil(viewport.width);
       canvas.height = Math.ceil(viewport.height);
       await page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport }).promise;
       showCover(container, 'canvas');
+      saveCanvasCover(item, canvas).catch(() => {});
     } finally {
       await document.destroy();
     }
   }
 
   async function renderEpubCover(item, container) {
-    if (typeof window.ePub !== 'function') throw new Error('EPUB.js indisponible');
     const image = container.querySelector('.kindle-cover-image');
-    if (!image) return;
+    if (!image || typeof window.ePub !== 'function') return;
+    if (image.src) {
+      try {
+        await image.decode();
+        image.hidden = false;
+        showCover(container, 'image');
+        return;
+      } catch {}
+    }
     const book = window.ePub(item.url);
     try {
       await book.ready;
       const coverUrl = await book.coverUrl();
-      if (!coverUrl) throw new Error('Aucune couverture EPUB');
-      await new Promise((resolve, reject) => {
-        image.onload = resolve;
-        image.onerror = () => reject(new Error('Couverture EPUB inaccessible'));
-        image.src = coverUrl;
-      });
+      if (!coverUrl) return;
+      image.src = coverUrl;
+      await image.decode();
       image.hidden = false;
       showCover(container, 'image');
     } finally {
@@ -118,6 +152,7 @@
     if (renderedCovers.has(key)) return;
     renderedCovers.add(key);
     try {
+      if (await loadCachedCover(item, container)) return;
       if ((item.format || '').toLowerCase() === 'epub') await renderEpubCover(item, container);
       else await renderPdfCover(item, container);
     } catch (error) {
@@ -126,24 +161,19 @@
     }
   }
 
-  function hydrateVisibleCovers(container) {
-    const covers = [...container.querySelectorAll('.kindle-cover-art')];
-    if (!('IntersectionObserver' in window)) {
-      covers.forEach(cover => {
-        const item = catalog.find(entry => entry.id === cover.closest('.kindle-book-card')?.dataset.id);
-        if (item) hydrateCover(item, cover);
-      });
-      return;
-    }
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-        observer.unobserve(entry.target);
-        const item = catalog.find(value => value.id === entry.target.closest('.kindle-book-card')?.dataset.id);
-        if (item) hydrateCover(item, entry.target);
-      });
-    }, { rootMargin: '240px' });
-    covers.forEach(cover => observer.observe(cover));
+  function hydrateAllCovers(container) {
+    const jobs = [...container.querySelectorAll('.kindle-cover-art')].map(cover => ({
+      cover,
+      item: catalog.find(entry => entry.id === cover.closest('.kindle-book-card')?.dataset.id)
+    })).filter(job => job.item);
+    let index = 0;
+    const worker = async () => {
+      while (index < jobs.length) {
+        const job = jobs[index++];
+        await hydrateCover(job.item, job.cover);
+      }
+    };
+    Promise.all([worker(), worker(), worker()]).catch(() => {});
   }
 
   function bindCards(container) {
@@ -157,8 +187,13 @@
           openItem(item);
         }
       });
+      const image = card.querySelector('.kindle-cover-image[src]');
+      if (image) {
+        image.addEventListener('load', () => showCover(image.closest('.kindle-cover-art'), 'image'), { once: true });
+        image.addEventListener('error', () => { image.hidden = true; }, { once: true });
+      }
     });
-    hydrateVisibleCovers(container);
+    requestAnimationFrame(() => hydrateAllCovers(container));
   }
 
   function render() {
