@@ -4,6 +4,7 @@
 
   const CACHE_PREFIX = 'comics_epub_locations_v1:';
   const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+  let nextCatalogId = '';
 
   function activeCatalogId() {
     try {
@@ -117,8 +118,25 @@
     return book;
   }
 
+  document.addEventListener('click', event => {
+    const card = event.target.closest?.('.kindle-book-card');
+    if (card?.dataset.id) {
+      nextCatalogId = String(card.dataset.id);
+      return;
+    }
+    if (event.target.closest?.('#openUrlButton')) nextCatalogId = '';
+  }, true);
+
+  document.addEventListener('change', event => {
+    if (event.target?.id !== 'sourceFile') return;
+    nextCatalogId = event.isTrusted ? '' : activeCatalogId();
+  }, true);
+
   function cachedEpub(...args) {
-    return patchBook(originalEpub.apply(this, args), activeCatalogId());
+    const catalogId = nextCatalogId;
+    nextCatalogId = '';
+    try { localStorage.setItem('comics_last_locations_scope', catalogId ? `catalog:${catalogId}` : 'manual'); } catch {}
+    return patchBook(originalEpub.apply(this, args), catalogId);
   }
 
   Object.assign(cachedEpub, originalEpub);
