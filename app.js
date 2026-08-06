@@ -82,17 +82,26 @@ async function renderPage({ resetScroll = true } = {}) {
     await renderTask.promise;
     canvas.hidden = false;
     emptyState.hidden = true;
-    if (resetScroll) stage.scrollTo({ top: 0, left: Math.max(0, (stage.scrollWidth - stage.clientWidth) / 2), behavior: 'instant' });
+    if (resetScroll) stage.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   } catch (error) { if (error?.name !== 'RenderingCancelledException') throw error; }
   finally { renderTask = null; }
   updateControls();
 }
 
+function availableReaderWidth() {
+  const styles = getComputedStyle(stage);
+  const horizontalPadding = parseFloat(styles.paddingLeft || '0') + parseFloat(styles.paddingRight || '0');
+  const horizontalBorders = parseFloat(styles.borderLeftWidth || '0') + parseFloat(styles.borderRightWidth || '0');
+  const width = stage.getBoundingClientRect().width - horizontalPadding - horizontalBorders;
+  return Math.max(1, width);
+}
+
 async function fitWidth() {
   if (!pdf) return;
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   const page = await pdf.getPage(currentPage);
   const base = page.getViewport({ scale: 1 });
-  zoom = Math.max(.5, Math.min(3, (stage.clientWidth - 4) / base.width));
+  zoom = Math.max(.25, Math.min(4, availableReaderWidth() / base.width));
   await renderPage();
 }
 async function goToPage(value) { if (!pdf) return; currentPage = Math.max(1, Math.min(pdf.numPages, Number(value) || 1)); await fitWidth(); setChromeVisible(true); }
@@ -180,8 +189,8 @@ pageNumber.onchange = () => goToPage(pageNumber.value);
 pageSlider.oninput = () => { pageNumber.value = pageSlider.value; };
 pageSlider.onchange = () => goToPage(pageSlider.value);
 zoomRange.oninput = () => { zoom = Number(zoomRange.value) / 100; renderPage({ resetScroll: false }); };
-$('zoomInButton').onclick = () => { zoom = Math.min(3, zoom + .2); renderPage({ resetScroll:false }); };
-$('zoomOutButton').onclick = () => { zoom = Math.max(.5, zoom - .2); renderPage({ resetScroll:false }); };
+$('zoomInButton').onclick = () => { zoom = Math.min(4, zoom + .2); renderPage({ resetScroll:false }); };
+$('zoomOutButton').onclick = () => { zoom = Math.max(.25, zoom - .2); renderPage({ resetScroll:false }); };
 $('fitButton').onclick = fitWidth;
 bookmarkButton.onclick = () => { state.bookmarks = state.bookmarks.includes(currentPage) ? state.bookmarks.filter(p => p !== currentPage) : [...state.bookmarks, currentPage]; updateControls(); renderBookmarks(); };
 fullscreenButton.onclick = toggleFullscreen;
@@ -213,7 +222,7 @@ stage.addEventListener('touchstart', event => {
 }, { passive:false });
 stage.addEventListener('touchmove', event => {
   if (event.touches.length === 2 && pinchStartDistance) {
-    zoom = Math.max(.5, Math.min(3, pinchStartZoom * distance(event.touches) / pinchStartDistance));
+    zoom = Math.max(.25, Math.min(4, pinchStartZoom * distance(event.touches) / pinchStartDistance));
     renderPage({ resetScroll:false }); event.preventDefault();
   }
 }, { passive:false });
