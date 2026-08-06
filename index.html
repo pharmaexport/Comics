@@ -2,16 +2,16 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#111111">
-  <title>Regards au Levant — Lecture facilitée</title>
+  <title>Comics Reader — Lecture facilitée</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
     <div>
       <p class="eyebrow">Lecture facilitée</p>
-      <h1>Regards au Levant</h1>
+      <h1>Comics Reader</h1>
     </div>
     <div class="top-actions">
       <button id="fullscreenButton" type="button">Plein écran</button>
@@ -23,10 +23,10 @@
     <section class="reader" aria-label="Lecteur de bande dessinée">
       <div class="panel-stage" id="panelStage" tabindex="0" aria-live="polite">
         <div class="empty-state" id="emptyState">
-          <strong>Lecteur prêt</strong>
-          <span>Ajoutez les planches dans le dossier <code>images/</code>, puis complétez <code>comics.js</code>.</span>
+          <strong>Chargement de la planche…</strong>
+          <span>Écartez deux doigts pour zoomer, puis faites glisser l’image.</span>
         </div>
-        <img id="panelImage" alt="" hidden>
+        <img id="panelImage" alt="" hidden draggable="false">
       </div>
 
       <div class="progress" aria-label="Progression de lecture">
@@ -42,19 +42,21 @@
       <div class="secondary-controls">
         <label>
           Zoom
-          <input id="zoomRange" type="range" min="100" max="220" step="10" value="100">
+          <input id="zoomRange" type="range" min="100" max="400" step="10" value="100">
         </label>
-        <button id="fitButton" type="button">Ajuster à l’écran</button>
+        <button id="fitButton" type="button">Réinitialiser le zoom</button>
         <button id="pageButton" type="button">Voir la planche entière</button>
       </div>
     </section>
 
     <aside id="helpPanel" class="help-panel" hidden>
       <h2>Commandes</h2>
+      <p>Deux doigts : zoom tactile</p>
+      <p>Un doigt après zoom : déplacer l’image</p>
+      <p>Double toucher : réinitialiser le zoom</p>
       <p><kbd>→</kbd> ou <kbd>Espace</kbd> : case suivante</p>
       <p><kbd>←</kbd> : case précédente</p>
       <p><kbd>F</kbd> : plein écran</p>
-      <p><kbd>+</kbd> / <kbd>−</kbd> : zoom</p>
     </aside>
   </main>
 
