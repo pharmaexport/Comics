@@ -2,6 +2,7 @@
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   if (!isIOS) return;
 
+  const EPUB_CACHE = 'comics-epub-files-v1';
   const zoomScript = document.createElement('script');
   zoomScript.src = 'ios-pinch-pan.js';
   zoomScript.defer = true;
@@ -77,24 +78,54 @@
     }
   };
 
+  const cacheKey = item => new Request(`${location.origin}/.epub-cache/${encodeURIComponent(item.id)}.epub`);
+
+  async function cachedBlob(item) {
+    if (!('caches' in window)) return null;
+    const response = await (await caches.open(EPUB_CACHE)).match(cacheKey(item));
+    if (!response) return null;
+    const blob = await response.blob();
+    return blob.size >= 1000 ? blob : null;
+  }
+
+  async function saveBlob(item, blob) {
+    if (!('caches' in window) || blob.size < 1000) return;
+    await (await caches.open(EPUB_CACHE)).put(
+      cacheKey(item),
+      new Response(blob, { headers: { 'Content-Type': 'application/epub+zip' } })
+    );
+  }
+
+  async function downloadBlob(item, signal) {
+    const cached = await cachedBlob(item).catch(() => null);
+    if (cached) return { blob: cached, cached: true };
+
+    const response = await fetch(item.url, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'omit',
+      signal
+    });
+    if (!response.ok) throw new Error(`Téléchargement refusé (${response.status})`);
+    const blob = await response.blob();
+    if (blob.size < 1000) throw new Error('Le fichier reçu est vide.');
+    saveBlob(item, blob).catch(() => {});
+    return { blob, cached: false };
+  }
+
   async function openEpub(item) {
     if (opening) return;
     opening = true;
+    const startedAt = performance.now();
     rememberItem(item);
-    showReader(fullTitle(item), 'Ouverture de l’EPUB…', 'Téléchargement sécurisé pour Safari.');
+    showReader(fullTitle(item), 'Ouverture de l’EPUB…', 'Recherche d’une copie locale.');
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30000);
     try {
-      const response = await fetch(item.url, {
-        method: 'GET',
-        cache: 'no-store',
-        credentials: 'omit',
-        signal: controller.signal
-      });
-      if (!response.ok) throw new Error(`Téléchargement refusé (${response.status})`);
-      const blob = await response.blob();
-      if (blob.size < 1000) throw new Error('Le fichier reçu est vide.');
+      const result = await downloadBlob(item, controller.signal);
+      const blob = result.blob;
+      showReader(fullTitle(item), 'Préparation de l’EPUB…', result.cached ? 'Copie locale trouvée.' : 'Téléchargement terminé.');
 
       const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
       const isZip = signature[0] === 0x50 && signature[1] === 0x4b;
@@ -105,6 +136,8 @@
       const input = document.getElementById('sourceFile');
       if (!input) throw new Error('Le sélecteur de fichier du lecteur est absent.');
 
+      localStorage.setItem('comics_last_catalog_id', item.id);
+      localStorage.setItem('comics_last_open_ms', String(Math.round(performance.now() - startedAt)));
       const transfer = new DataTransfer();
       transfer.items.add(file);
       input.files = transfer.files;
