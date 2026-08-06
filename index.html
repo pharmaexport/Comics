@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=5">
   <meta name="theme-color" content="#071018">
   <title>Fantasmes – Tome 3 – Les Jeux interdits</title>
   <link rel="stylesheet" href="styles.css">
@@ -17,54 +17,32 @@
   </header>
 
   <main class="app-shell">
-    <section class="selectors" aria-label="Choix de lecture">
-      <label><span>Mode</span><select id="readerMode"><option value="comic">Cases</option><option value="pdf" selected>PDF</option></select></label>
-      <label><span>Tome</span><select id="volumeSelect"><option>Tome 3</option></select></label>
-      <label><span>Document</span><select id="pageSelect"><option>Les Jeux interdits</option></select></label>
-    </section>
-
-    <section id="pdfControls" class="pdf-controls" aria-label="Contrôles du lecteur PDF">
-      <label for="pdfUrl">Adresse du PDF</label>
-      <div class="pdf-url-row">
-        <input id="pdfUrl" type="url" value="https://psv4.vkuserphoto.ru/s/v1/d/MMmE-TeR6bPMu1hdn3N5p-Zqkr_biSz3JIcwUtiE_t4OuJt82gPMdjvkMaS4J3-ENLtaSUqYx5CoNgQOZWt1jkG6SkHdT8j_YgHxnvvXyWD1rNWG/Fantasmes_-_Tome_3_-_Les_Jeux_interdits.pdf" aria-label="Adresse du document PDF">
-        <button id="loadPdfButton" type="button">Charger</button>
-      </div>
-    </section>
-
-    <section class="reader-card" aria-label="Lecteur de bande dessinée">
-      <div class="panel-stage pdf-mode" id="panelStage" tabindex="0" aria-live="polite">
-        <div class="empty-state" id="emptyState" hidden><strong>Aucune planche disponible</strong></div>
-        <img id="panelImage" alt="" hidden draggable="false">
-        <iframe id="pdfFrame" title="Fantasmes – Tome 3 – Les Jeux interdits" src="https://psv4.vkuserphoto.ru/s/v1/d/MMmE-TeR6bPMu1hdn3N5p-Zqkr_biSz3JIcwUtiE_t4OuJt82gPMdjvkMaS4J3-ENLtaSUqYx5CoNgQOZWt1jkG6SkHdT8j_YgHxnvvXyWD1rNWG/Fantasmes_-_Tome_3_-_Les_Jeux_interdits.pdf" allowfullscreen></iframe>
+    <section class="reader-card" aria-label="Lecteur PDF">
+      <div class="panel-stage pdf-mode" id="panelStage" tabindex="0">
+        <div class="empty-state" id="emptyState"><strong>Chargement du PDF…</strong></div>
+        <canvas id="pdfCanvas" hidden></canvas>
       </div>
 
-      <div id="comicProgress" class="progress-block" hidden>
-        <span id="progressLabel">Case 0 sur 0</span>
-        <progress id="progressBar" max="1" value="0"></progress>
+      <div class="pdf-status">
+        <button id="previousButton" type="button" aria-label="Page précédente">←</button>
+        <label>Page <input id="pageNumber" type="number" min="1" value="1" inputmode="numeric"> / <span id="pageCount">0</span></label>
+        <button id="nextButton" type="button" aria-label="Page suivante">→</button>
       </div>
 
-      <nav id="comicControls" class="controls" aria-label="Navigation entre les cases" hidden>
-        <button id="previousButton" type="button" class="nav-button">←<span>Précédente</span></button>
-        <button id="pageButton" type="button" class="compact-button">▦<span>Voir la planche</span></button>
-        <button id="fitButton" type="button" class="compact-button">☷<span>Ajuster</span></button>
-        <button id="nextButton" type="button" class="nav-button primary">→<span>Suivante</span></button>
-      </nav>
-    </section>
-
-    <section id="zoomPanel" class="zoom-panel" aria-label="Réglage du zoom" hidden>
-      <span>Zoom</span>
-      <button id="zoomOutButton" type="button" aria-label="Dézoomer">−</button>
-      <input id="zoomRange" type="range" min="100" max="400" step="10" value="100" aria-label="Zoom">
-      <button id="zoomInButton" type="button" aria-label="Zoomer">+</button>
-      <output id="zoomValue">100%</output>
-      <small>Pincez avec deux doigts pour zoomer</small>
+      <div class="pdf-toolbar">
+        <button id="zoomOutButton" type="button" aria-label="Dézoomer">−</button>
+        <input id="zoomRange" type="range" min="50" max="300" step="10" value="100" aria-label="Zoom">
+        <button id="zoomInButton" type="button" aria-label="Zoomer">+</button>
+        <output id="zoomValue">100%</output>
+        <button id="fitButton" type="button">Ajuster</button>
+      </div>
     </section>
 
     <aside id="helpPanel" class="help-panel" hidden>
       <h2>Commandes</h2>
-      <p>Le PDF est chargé automatiquement à l’ouverture.</p>
-      <p>Utilisez la barre d’outils du lecteur PDF pour naviguer et zoomer.</p>
-      <p>Le bouton Plein écran agrandit toute la zone de lecture.</p>
+      <p>Utilisez les flèches ou les boutons pour changer de planche.</p>
+      <p>Utilisez +, − ou le curseur pour zoomer. Le bouton Ajuster adapte la page à l’écran.</p>
+      <p>La touche F active ou quitte le plein écran.</p>
     </aside>
   </main>
 
@@ -75,7 +53,7 @@
     <button>⚙<span>Paramètres</span></button>
   </nav>
 
-  <script src="comics.js"></script>
-  <script src="app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+  <script src="app.js" type="module"></script>
 </body>
 </html>
