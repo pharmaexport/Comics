@@ -4,6 +4,7 @@
   let activeFormat = '';
   let timer = 0;
   let completed = true;
+  let ignoredProgrammaticStarts = 0;
 
   const byId = id => document.getElementById(id);
   const isVisible = element => element && !element.hidden && element.getClientRects().length > 0;
@@ -41,18 +42,37 @@
     if (next) next.disabled = true;
   }
 
-  function begin(format = '') {
+  function begin(format = '', trigger = 'unknown') {
+    const requestedFormat = String(format || '').toLowerCase();
+
+    // Le correctif iOS transmet le fichier téléchargé au lecteur avec un événement
+    // change synthétique. Ce second signal appartient à la même ouverture : il ne doit
+    // ni remettre le chronomètre à zéro, ni repousser le diagnostic de chargement.
+    if (!completed && startedAt && trigger === 'programmatic-file') {
+      if (requestedFormat) activeFormat = requestedFormat;
+      ignoredProgrammaticStarts += 1;
+      try {
+        localStorage.setItem('comics_last_duplicate_start_ignored', String(ignoredProgrammaticStarts));
+        localStorage.setItem('comics_last_render_format', activeFormat || 'unknown');
+      } catch {}
+      return false;
+    }
+
     clearTimeout(timer);
     startedAt = performance.now();
-    activeFormat = String(format || '').toLowerCase();
+    activeFormat = requestedFormat;
     completed = false;
+    ignoredProgrammaticStarts = 0;
     showReaderImmediately(activeFormat);
     setLoadingControls();
     try {
       localStorage.setItem('comics_last_render_state', 'loading');
       localStorage.setItem('comics_last_render_format', activeFormat || 'unknown');
+      localStorage.setItem('comics_last_start_trigger', trigger);
+      localStorage.setItem('comics_last_duplicate_start_ignored', '0');
     } catch {}
     timer = window.setTimeout(showTimeout, TIMEOUT_MS);
+    return true;
   }
 
   function firstRenderReady() {
@@ -97,20 +117,21 @@
     const card = event.target.closest('.kindle-book-card');
     if (card) {
       const badge = card.querySelector('.kindle-format');
-      begin(badge?.textContent || '');
+      begin(badge?.textContent || '', 'card');
       return;
     }
 
     if (event.target.closest('#openUrlButton')) {
       const value = byId('sourceUrl')?.value?.trim().toLowerCase() || '';
-      begin(value.includes('.epub') ? 'epub' : 'pdf');
+      begin(value.includes('.epub') ? 'epub' : 'pdf', 'url');
     }
   }, true);
 
   document.addEventListener('change', event => {
     if (event.target?.id !== 'sourceFile') return;
     const file = event.target.files?.[0];
-    begin(file?.name?.toLowerCase().endsWith('.epub') ? 'epub' : 'pdf');
+    const trigger = event.isTrusted ? 'file' : 'programmatic-file';
+    begin(file?.name?.toLowerCase().endsWith('.epub') ? 'epub' : 'pdf', trigger);
   }, true);
 
   const observer = new MutationObserver(() => {
