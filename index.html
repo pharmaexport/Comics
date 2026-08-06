@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=5,user-scalable=yes">
   <meta name="theme-color" content="#02060d">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Fantasmes – Tome 3 – Les Jeux interdits</title>
+  <title>Comics Reader</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -23,7 +23,7 @@
     <div class="content-shell">
       <header class="topbar reader-chrome" id="topbar">
         <button id="backButton" class="icon-button" type="button" aria-label="Retour à la bibliothèque">←</button>
-        <strong id="comicTitle">Fantasmes – Tome 3 – Les Jeux interdits</strong>
+        <strong id="comicTitle">Comics Reader</strong>
         <div class="top-actions">
           <button id="bookmarkButton" class="icon-button" type="button" aria-pressed="false">♡</button>
           <button id="fullscreenButton" type="button">Plein écran</button>
@@ -33,24 +33,25 @@
       <main class="main-content">
         <section id="readerView" class="view active-view">
           <div class="immersive-reader" id="immersiveReader">
-            <div class="panel-stage" id="panelStage" tabindex="0" aria-label="Page de bande dessinée">
-              <div class="empty-state" id="emptyState"><strong>Chargement du PDF…</strong></div>
+            <div class="panel-stage" id="panelStage" tabindex="0" aria-label="Lecteur de document">
+              <div class="empty-state" id="emptyState"><strong>Chargement du document…</strong></div>
               <canvas id="pdfCanvas" hidden></canvas>
+              <div id="epubViewer" hidden></div>
             </div>
 
             <div class="reader-overlay reader-chrome" id="readerControls">
               <button id="previousButton" type="button" class="round-button" aria-label="Page précédente">←</button>
               <div class="page-control">
-                <div><span>Page</span> <input id="pageNumber" type="number" min="1" value="1" inputmode="numeric"> <span>sur <b id="pageCount">0</b></span></div>
+                <div><span id="positionLabel">Page</span> <input id="pageNumber" type="number" min="1" value="1" inputmode="numeric"> <span>sur <b id="pageCount">0</b></span></div>
                 <input id="pageSlider" type="range" min="1" max="1" value="1" aria-label="Progression">
               </div>
               <button id="nextButton" type="button" class="round-button primary" aria-label="Page suivante">→</button>
             </div>
 
             <div class="zoom-dock reader-chrome" id="zoomDock">
-              <button id="zoomOutButton" type="button" aria-label="Dézoomer">−</button>
-              <input id="zoomRange" type="range" min="50" max="300" step="10" value="100" aria-label="Zoom">
-              <button id="zoomInButton" type="button" aria-label="Zoomer">+</button>
+              <button id="zoomOutButton" type="button" aria-label="Réduire">−</button>
+              <input id="zoomRange" type="range" min="25" max="400" step="5" value="100" aria-label="Zoom ou taille du texte">
+              <button id="zoomInButton" type="button" aria-label="Agrandir">+</button>
               <output id="zoomValue">100%</output>
               <button id="fitButton" type="button">Ajuster à la largeur</button>
             </div>
@@ -59,10 +60,14 @@
 
         <section id="libraryView" class="view">
           <div class="section-heading"><div><small>COLLECTION</small><h1>Bibliothèque</h1></div><input id="librarySearch" type="search" placeholder="Rechercher une BD…"></div>
+          <div class="source-loader">
+            <label><span>Ouvrir depuis une adresse PDF ou EPUB</span><div><input id="sourceUrl" type="url" placeholder="https://…/livre.epub"><button id="openUrlButton" type="button">Ouvrir</button></div></label>
+            <label class="file-button">Choisir un fichier PDF ou EPUB<input id="sourceFile" type="file" accept="application/pdf,application/epub+zip,.pdf,.epub"></label>
+          </div>
           <div class="comic-grid">
             <article class="comic-card" id="openCurrentComic" tabindex="0">
-              <div class="cover-preview"><canvas id="coverCanvas"></canvas><span class="badge">PDF</span></div>
-              <div class="comic-info"><h2>Fantasmes – Tome 3</h2><p>Les Jeux interdits</p><div class="card-progress"><span id="cardProgressText">Chargement…</span><progress id="cardProgress" max="1" value="0"></progress></div></div>
+              <div class="cover-preview"><canvas id="coverCanvas"></canvas><div id="epubCoverFallback">📚</div><span class="badge" id="formatBadge">PDF</span></div>
+              <div class="comic-info"><h2 id="libraryTitle">Fantasmes – Tome 3</h2><p id="librarySubtitle">Les Jeux interdits</p><div class="card-progress"><span id="cardProgressText">Chargement…</span><progress id="cardProgress" max="1" value="0"></progress></div></div>
             </article>
           </div>
         </section>
@@ -80,6 +85,7 @@
     <button class="nav-item" data-view="settings">⚙<span>Paramètres</span></button>
   </nav>
 
+  <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
   <script src="app.js" type="module"></script>
 </body>
 </html>
