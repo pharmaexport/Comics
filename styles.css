@@ -49,23 +49,36 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: clamp(.75rem, 2vw, 1.5
 .reader { display: grid; gap: 1rem; }
 .panel-stage {
   min-height: calc(100vh - 260px);
-  display: grid;
-  place-items: center;
-  overflow: auto;
+  position: relative;
+  overflow: hidden;
   border: 1px solid #383838;
   border-radius: 18px;
   background: #111;
   box-shadow: 0 20px 80px rgba(0, 0, 0, .45);
-  touch-action: pan-x pan-y;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 .panel-stage img {
+  position: absolute;
   display: block;
   max-width: none;
-  transform-origin: center;
+  transform-origin: 0 0;
   user-select: none;
   -webkit-user-drag: none;
+  will-change: left, top, width, height;
 }
-.empty-state { display: grid; gap: .6rem; max-width: 40rem; padding: 2rem; text-align: center; color: #cfcfcf; }
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: .6rem;
+  max-width: 40rem;
+  margin: auto;
+  padding: 2rem;
+  text-align: center;
+  color: #cfcfcf;
+}
 .empty-state strong { color: #fff; font-size: 1.4rem; }
 .empty-state code { color: #fff; }
 
