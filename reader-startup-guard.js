@@ -8,6 +8,26 @@
   const byId = id => document.getElementById(id);
   const isVisible = element => element && !element.hidden && element.getClientRects().length > 0;
 
+  function showReaderImmediately(format = '') {
+    document.querySelectorAll('.view').forEach(view => {
+      view.classList.toggle('active-view', view.id === 'readerView');
+    });
+    document.querySelectorAll('.nav-item').forEach(button => {
+      button.classList.toggle('active', button.dataset.view === 'reader');
+    });
+    document.body.classList.add('reading-mode');
+
+    const state = byId('emptyState');
+    if (state) {
+      state.hidden = false;
+      state.innerHTML = `<strong>Ouverture du ${format === 'epub' ? 'EPUB' : 'PDF'}…</strong><span>Préparation de la première page.</span>`;
+    }
+
+    try {
+      localStorage.setItem('comics_last_reader_feedback_ms', String(Math.round(performance.now() - startedAt)));
+    } catch {}
+  }
+
   function setLoadingControls() {
     const pageNumber = byId('pageNumber');
     const pageCount = byId('pageCount');
@@ -26,6 +46,7 @@
     startedAt = performance.now();
     activeFormat = String(format || '').toLowerCase();
     completed = false;
+    showReaderImmediately(activeFormat);
     setLoadingControls();
     try {
       localStorage.setItem('comics_last_render_state', 'loading');
@@ -74,9 +95,16 @@
 
   document.addEventListener('click', event => {
     const card = event.target.closest('.kindle-book-card');
-    if (!card) return;
-    const badge = card.querySelector('.kindle-format');
-    begin(badge?.textContent || '');
+    if (card) {
+      const badge = card.querySelector('.kindle-format');
+      begin(badge?.textContent || '');
+      return;
+    }
+
+    if (event.target.closest('#openUrlButton')) {
+      const value = byId('sourceUrl')?.value?.trim().toLowerCase() || '';
+      begin(value.includes('.epub') ? 'epub' : 'pdf');
+    }
   }, true);
 
   document.addEventListener('change', event => {
