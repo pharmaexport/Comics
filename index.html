@@ -7,6 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Comics Reader</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="kindle-library.css">
 </head>
 <body>
   <div class="app-layout">
@@ -59,16 +60,41 @@
         </section>
 
         <section id="libraryView" class="view">
-          <div class="section-heading"><div><small>COLLECTION</small><h1>Bibliothèque</h1></div><input id="librarySearch" type="search" placeholder="Rechercher une BD…"></div>
-          <div class="source-loader">
-            <label><span>Ouvrir depuis une adresse PDF ou EPUB</span><div><input id="sourceUrl" type="url" placeholder="https://…/livre.epub"><button id="openUrlButton" type="button">Ouvrir</button></div></label>
-            <label class="file-button">Choisir un fichier PDF ou EPUB<input id="sourceFile" type="file" accept="application/pdf,application/epub+zip,.pdf,.epub"></label>
-          </div>
-          <div class="comic-grid">
-            <article class="comic-card" id="openCurrentComic" tabindex="0">
-              <div class="cover-preview"><canvas id="coverCanvas"></canvas><div id="epubCoverFallback">📚</div><span class="badge" id="formatBadge">PDF</span></div>
-              <div class="comic-info"><h2 id="libraryTitle">Eternum – 01</h2><p id="librarySubtitle">Le sarcophage</p><div class="card-progress"><span id="cardProgressText">Chargement…</span><progress id="cardProgress" max="1" value="0"></progress></div></div>
-            </article>
+          <div class="kindle-library">
+            <header class="kindle-hero">
+              <div><small>MA BIBLIOTHÈQUE</small><h1>Vos bandes dessinées</h1></div>
+              <span class="kindle-count" id="libraryCount">Chargement…</span>
+            </header>
+
+            <div class="kindle-search-row">
+              <label class="kindle-search"><input id="librarySearch" type="search" placeholder="Rechercher un titre, un auteur ou un tome…"></label>
+              <button class="kindle-import" type="button" onclick="document.getElementById('sourceFile').click()">＋ Ajouter un livre</button>
+            </div>
+
+            <nav class="kindle-filters" id="libraryFilters" aria-label="Filtres de bibliothèque">
+              <button class="active" type="button" data-filter="all">Tous</button>
+              <button type="button" data-filter="reading">En cours</button>
+              <button type="button" data-filter="unread">Non lus</button>
+              <button type="button" data-filter="finished">Terminés</button>
+            </nav>
+
+            <section class="kindle-section">
+              <div class="kindle-section-header"><h2>Continuer la lecture</h2><span>Reprise rapide</span></div>
+              <div class="kindle-continue" id="continueReading"></div>
+            </section>
+
+            <section class="kindle-section">
+              <div class="kindle-section-header"><h2>Toute la bibliothèque</h2><span>Classée par ajout</span></div>
+              <div class="kindle-grid" id="libraryGrid"></div>
+            </section>
+
+            <details class="kindle-source-panel">
+              <summary>Ouvrir une adresse PDF ou EPUB</summary>
+              <div class="source-loader">
+                <label><span>Adresse du document</span><div><input id="sourceUrl" type="url" placeholder="https://…/livre.epub"><button id="openUrlButton" type="button">Ouvrir</button></div></label>
+                <label class="file-button">Choisir un fichier PDF ou EPUB<input id="sourceFile" type="file" accept="application/pdf,application/epub+zip,.pdf,.epub"></label>
+              </div>
+            </details>
           </div>
         </section>
 
