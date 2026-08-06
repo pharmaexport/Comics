@@ -80,16 +80,26 @@
 
   const cacheKey = item => new Request(`${location.origin}/.epub-cache/${encodeURIComponent(item.id)}.epub`);
 
+  async function hasZipSignature(blob) {
+    if (!blob || blob.size < 1000) return false;
+    const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    return signature[0] === 0x50 && signature[1] === 0x4b;
+  }
+
   async function cachedBlob(item) {
     if (!('caches' in window)) return null;
-    const response = await (await caches.open(EPUB_CACHE)).match(cacheKey(item));
+    const cache = await caches.open(EPUB_CACHE);
+    const key = cacheKey(item);
+    const response = await cache.match(key);
     if (!response) return null;
     const blob = await response.blob();
-    return blob.size >= 1000 ? blob : null;
+    if (await hasZipSignature(blob)) return blob;
+    await cache.delete(key);
+    return null;
   }
 
   async function saveBlob(item, blob) {
-    if (!('caches' in window) || blob.size < 1000) return;
+    if (!('caches' in window) || !(await hasZipSignature(blob))) return;
     await (await caches.open(EPUB_CACHE)).put(
       cacheKey(item),
       new Response(blob, { headers: { 'Content-Type': 'application/epub+zip' } })
@@ -108,7 +118,7 @@
     });
     if (!response.ok) throw new Error(`Téléchargement refusé (${response.status})`);
     const blob = await response.blob();
-    if (blob.size < 1000) throw new Error('Le fichier reçu est vide.');
+    if (!(await hasZipSignature(blob))) throw new Error('Google Drive n’a pas renvoyé un EPUB valide.');
     saveBlob(item, blob).catch(() => {});
     return { blob, cached: false };
   }
@@ -127,10 +137,6 @@
       const blob = result.blob;
       showReader(fullTitle(item), 'Préparation de l’EPUB…', result.cached ? 'Copie locale trouvée.' : 'Téléchargement terminé.');
 
-      const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
-      const isZip = signature[0] === 0x50 && signature[1] === 0x4b;
-      if (!isZip) throw new Error('Google Drive n’a pas renvoyé un EPUB valide.');
-
       const safeName = `${String(item.title || 'livre').replace(/[\\/:*?"<>|]+/g, ' ').trim()}.epub`;
       const file = new File([blob], safeName, { type: 'application/epub+zip' });
       const input = document.getElementById('sourceFile');
@@ -138,6 +144,7 @@
 
       localStorage.setItem('comics_last_catalog_id', item.id);
       localStorage.setItem('comics_last_open_ms', String(Math.round(performance.now() - startedAt)));
+      localStorage.setItem('comics_last_open_source', result.cached ? 'cache' : 'network');
       const transfer = new DataTransfer();
       transfer.items.add(file);
       input.files = transfer.files;
