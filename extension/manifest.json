@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Comics Importer",
-  "version": "0.2.0",
-  "description": "Import avancé MyReadingManga vers Google Drive et le catalogue Comics, avec détection robuste des pages.",
+  "version": "0.3.0",
+  "description": "Import avancé MyReadingManga vers Google Drive et le catalogue Comics, avec détection robuste, stabilisation du chargement et diagnostics.",
   "permissions": ["storage", "tabs", "scripting", "identity", "notifications"],
   "host_permissions": [
     "https://myreadingmanga.info/*",
