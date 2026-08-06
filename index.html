@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
   <meta name="theme-color" content="#071018">
-  <title>Comics Reader</title>
+  <title>Fantasmes – Tome 3 – Les Jeux interdits</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="appbar">
-    <div class="brand">📖 <strong>Comics Reader</strong></div>
+    <div class="brand">📖 <strong id="comicTitle">Fantasmes – Tome 3 – Les Jeux interdits</strong></div>
     <div class="header-actions">
       <button id="helpButton" type="button" aria-expanded="false">Aide</button>
       <button id="fullscreenButton" type="button">Plein écran</button>
@@ -18,22 +18,32 @@
 
   <main class="app-shell">
     <section class="selectors" aria-label="Choix de lecture">
-      <label><span>Tome</span><select id="volumeSelect"><option>Tome 1</option></select></label>
-      <label><span>Planche</span><select id="pageSelect"><option>Planche 1</option></select></label>
+      <label><span>Mode</span><select id="readerMode"><option value="comic">Cases</option><option value="pdf" selected>PDF</option></select></label>
+      <label><span>Tome</span><select id="volumeSelect"><option>Tome 3</option></select></label>
+      <label><span>Document</span><select id="pageSelect"><option>Les Jeux interdits</option></select></label>
+    </section>
+
+    <section id="pdfControls" class="pdf-controls" aria-label="Contrôles du lecteur PDF">
+      <label for="pdfUrl">Adresse du PDF</label>
+      <div class="pdf-url-row">
+        <input id="pdfUrl" type="url" value="https://psv4.vkuserphoto.ru/s/v1/d/MMmE-TeR6bPMu1hdn3N5p-Zqkr_biSz3JIcwUtiE_t4OuJt82gPMdjvkMaS4J3-ENLtaSUqYx5CoNgQOZWt1jkG6SkHdT8j_YgHxnvvXyWD1rNWG/Fantasmes_-_Tome_3_-_Les_Jeux_interdits.pdf" aria-label="Adresse du document PDF">
+        <button id="loadPdfButton" type="button">Charger</button>
+      </div>
     </section>
 
     <section class="reader-card" aria-label="Lecteur de bande dessinée">
-      <div class="panel-stage" id="panelStage" tabindex="0" aria-live="polite">
+      <div class="panel-stage pdf-mode" id="panelStage" tabindex="0" aria-live="polite">
         <div class="empty-state" id="emptyState" hidden><strong>Aucune planche disponible</strong></div>
         <img id="panelImage" alt="" hidden draggable="false">
+        <iframe id="pdfFrame" title="Fantasmes – Tome 3 – Les Jeux interdits" src="https://psv4.vkuserphoto.ru/s/v1/d/MMmE-TeR6bPMu1hdn3N5p-Zqkr_biSz3JIcwUtiE_t4OuJt82gPMdjvkMaS4J3-ENLtaSUqYx5CoNgQOZWt1jkG6SkHdT8j_YgHxnvvXyWD1rNWG/Fantasmes_-_Tome_3_-_Les_Jeux_interdits.pdf" allowfullscreen></iframe>
       </div>
 
-      <div class="progress-block">
+      <div id="comicProgress" class="progress-block" hidden>
         <span id="progressLabel">Case 0 sur 0</span>
         <progress id="progressBar" max="1" value="0"></progress>
       </div>
 
-      <nav class="controls" aria-label="Navigation entre les cases">
+      <nav id="comicControls" class="controls" aria-label="Navigation entre les cases" hidden>
         <button id="previousButton" type="button" class="nav-button">←<span>Précédente</span></button>
         <button id="pageButton" type="button" class="compact-button">▦<span>Voir la planche</span></button>
         <button id="fitButton" type="button" class="compact-button">☷<span>Ajuster</span></button>
@@ -41,7 +51,7 @@
       </nav>
     </section>
 
-    <section class="zoom-panel" aria-label="Réglage du zoom">
+    <section id="zoomPanel" class="zoom-panel" aria-label="Réglage du zoom" hidden>
       <span>Zoom</span>
       <button id="zoomOutButton" type="button" aria-label="Dézoomer">−</button>
       <input id="zoomRange" type="range" min="100" max="400" step="10" value="100" aria-label="Zoom">
@@ -52,8 +62,9 @@
 
     <aside id="helpPanel" class="help-panel" hidden>
       <h2>Commandes</h2>
-      <p>Balayez horizontalement ou utilisez les boutons pour changer de case.</p>
-      <p>Pincez avec deux doigts pour zoomer et glissez pour déplacer l’image.</p>
+      <p>Le PDF est chargé automatiquement à l’ouverture.</p>
+      <p>Utilisez la barre d’outils du lecteur PDF pour naviguer et zoomer.</p>
+      <p>Le bouton Plein écran agrandit toute la zone de lecture.</p>
     </aside>
   </main>
 
