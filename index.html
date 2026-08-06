@@ -3,57 +3,110 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=5">
-  <meta name="theme-color" content="#071018">
+  <meta name="theme-color" content="#050b14">
   <title>Fantasmes – Tome 3 – Les Jeux interdits</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="appbar">
-    <div class="brand">📖 <strong id="comicTitle">Fantasmes – Tome 3 – Les Jeux interdits</strong></div>
-    <div class="header-actions">
-      <button id="helpButton" type="button" aria-expanded="false">Aide</button>
-      <button id="fullscreenButton" type="button">Plein écran</button>
-    </div>
-  </header>
-
-  <main class="app-shell">
-    <section class="reader-card" aria-label="Lecteur PDF">
-      <div class="panel-stage pdf-mode" id="panelStage" tabindex="0">
-        <div class="empty-state" id="emptyState"><strong>Chargement du PDF…</strong></div>
-        <canvas id="pdfCanvas" hidden></canvas>
-      </div>
-
-      <div class="pdf-status">
-        <button id="previousButton" type="button" aria-label="Page précédente">←</button>
-        <label>Page <input id="pageNumber" type="number" min="1" value="1" inputmode="numeric"> / <span id="pageCount">0</span></label>
-        <button id="nextButton" type="button" aria-label="Page suivante">→</button>
-      </div>
-
-      <div class="pdf-toolbar">
-        <button id="zoomOutButton" type="button" aria-label="Dézoomer">−</button>
-        <input id="zoomRange" type="range" min="50" max="300" step="10" value="100" aria-label="Zoom">
-        <button id="zoomInButton" type="button" aria-label="Zoomer">+</button>
-        <output id="zoomValue">100%</output>
-        <button id="fitButton" type="button">Ajuster</button>
-      </div>
-    </section>
-
-    <aside id="helpPanel" class="help-panel" hidden>
-      <h2>Commandes</h2>
-      <p>Utilisez les flèches ou les boutons pour changer de planche.</p>
-      <p>Utilisez +, − ou le curseur pour zoomer. Le bouton Ajuster adapte la page à l’écran.</p>
-      <p>La touche F active ou quitte le plein écran.</p>
+  <div class="app-layout">
+    <aside class="sidebar" aria-label="Navigation">
+      <div class="logo">VK<span>omic</span></div>
+      <nav class="side-nav">
+        <button class="nav-item active" data-view="reader" title="Lecture">◉<span>Lecture</span></button>
+        <button class="nav-item" data-view="library" title="Bibliothèque">▦<span>Bibliothèque</span></button>
+        <button class="nav-item" data-view="bookmarks" title="Marque-pages">♡<span>Marque-pages</span></button>
+        <button class="nav-item" data-view="settings" title="Paramètres">⚙<span>Paramètres</span></button>
+      </nav>
+      <div class="sidebar-status"><i></i><span>Document disponible</span></div>
     </aside>
-  </main>
 
-  <nav class="bottom-nav" aria-label="Navigation principale">
-    <button class="active">⌂<span>Lecture</span></button>
-    <button>☷<span>Sommaire</span></button>
-    <button>♡<span>Marque-pages</span></button>
-    <button>⚙<span>Paramètres</span></button>
+    <div class="content-shell">
+      <header class="topbar">
+        <div class="title-block">
+          <small>LECTEUR PDF</small>
+          <strong id="comicTitle">Fantasmes – Tome 3 – Les Jeux interdits</strong>
+        </div>
+        <div class="top-actions">
+          <button id="bookmarkButton" type="button" aria-pressed="false" title="Marquer cette page">♡</button>
+          <button id="helpButton" type="button" aria-expanded="false">Aide</button>
+          <button id="fullscreenButton" type="button">Plein écran</button>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <section id="readerView" class="view active-view">
+          <div class="reader-card">
+            <div class="reader-meta">
+              <div><span>Document</span><strong>Fantasmes – Tome 3</strong></div>
+              <div><span>Chapitre</span><strong>Les Jeux interdits</strong></div>
+              <div><span>Progression</span><strong id="progressText">0 %</strong></div>
+            </div>
+
+            <div class="panel-stage" id="panelStage" tabindex="0">
+              <div class="empty-state" id="emptyState"><strong>Chargement du PDF…</strong></div>
+              <canvas id="pdfCanvas" hidden></canvas>
+            </div>
+
+            <div class="reader-controls">
+              <button id="previousButton" type="button" class="page-button" aria-label="Page précédente">←<span>Précédente</span></button>
+              <div class="page-control">
+                <label>Page <input id="pageNumber" type="number" min="1" value="1" inputmode="numeric"> sur <span id="pageCount">0</span></label>
+                <progress id="pageProgress" max="1" value="0"></progress>
+              </div>
+              <button id="nextButton" type="button" class="page-button primary" aria-label="Page suivante">→<span>Suivante</span></button>
+            </div>
+
+            <div class="zoom-bar">
+              <button id="zoomOutButton" type="button" aria-label="Dézoomer">−</button>
+              <input id="zoomRange" type="range" min="50" max="300" step="10" value="100" aria-label="Zoom">
+              <button id="zoomInButton" type="button" aria-label="Zoomer">+</button>
+              <output id="zoomValue">100%</output>
+              <button id="fitButton" type="button">Ajuster</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="libraryView" class="view">
+          <div class="section-heading"><div><small>COLLECTION</small><h1>Bibliothèque</h1></div><input id="librarySearch" type="search" placeholder="Rechercher une BD…"></div>
+          <div class="comic-grid">
+            <article class="comic-card" id="openCurrentComic" tabindex="0">
+              <div class="cover-preview"><canvas id="coverCanvas"></canvas><span class="badge">PDF</span></div>
+              <div class="comic-info"><h2>Fantasmes – Tome 3</h2><p>Les Jeux interdits</p><div class="card-progress"><span id="cardProgressText">En cours</span><progress id="cardProgress" max="1" value="0"></progress></div></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="bookmarksView" class="view">
+          <div class="section-heading"><div><small>LECTURE</small><h1>Marque-pages</h1></div></div>
+          <div id="bookmarkList" class="bookmark-list"></div>
+        </section>
+
+        <section id="settingsView" class="view">
+          <div class="section-heading"><div><small>APPLICATION</small><h1>Paramètres</h1></div></div>
+          <div class="settings-card">
+            <label><span>Thème</span><select id="themeSelect"><option value="dark">Sombre</option><option value="black">Noir profond</option></select></label>
+            <label><span>Sens de navigation</span><select id="directionSelect"><option value="ltr">Gauche vers droite</option><option value="rtl">Droite vers gauche</option></select></label>
+            <button id="resetProgressButton" type="button">Réinitialiser la progression</button>
+          </div>
+        </section>
+
+        <aside id="helpPanel" class="help-panel" hidden>
+          <h2>Commandes</h2>
+          <p>Flèches, Espace ou boutons pour changer de page.</p>
+          <p>Utilisez +, −, le curseur ou le pincement pour zoomer.</p>
+          <p>La touche F active ou quitte le plein écran.</p>
+        </aside>
+      </main>
+    </div>
+  </div>
+
+  <nav class="mobile-nav" aria-label="Navigation mobile">
+    <button class="nav-item active" data-view="reader">◉<span>Lecture</span></button>
+    <button class="nav-item" data-view="library">▦<span>Bibliothèque</span></button>
+    <button class="nav-item" data-view="bookmarks">♡<span>Marque-pages</span></button>
+    <button class="nav-item" data-view="settings">⚙<span>Paramètres</span></button>
   </nav>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
   <script src="app.js" type="module"></script>
 </body>
 </html>
