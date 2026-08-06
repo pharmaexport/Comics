@@ -50,6 +50,28 @@
     if (!locations || typeof locations.generate !== 'function' || locations.__comicsCachePatched) return book;
 
     const originalGenerate = locations.generate.bind(locations);
+    const originalRenderTo = typeof book.renderTo === 'function' ? book.renderTo.bind(book) : null;
+    let rendition = null;
+    let generationPromise = null;
+
+    if (originalRenderTo) {
+      book.renderTo = (...args) => {
+        rendition = originalRenderTo(...args);
+        return rendition;
+      };
+    }
+
+    async function refreshCurrentLocation() {
+      if (!rendition || typeof rendition.display !== 'function') return;
+      try {
+        const current = rendition.currentLocation?.();
+        const cfi = current?.start?.cfi;
+        if (cfi) await rendition.display(cfi);
+      } catch {
+        // Le livre peut avoir été fermé pendant l’indexation.
+      }
+    }
+
     locations.__comicsCachePatched = true;
     locations.generate = async (...args) => {
       const cached = loadCachedLocations(catalogId);
@@ -63,15 +85,34 @@
         }
       }
 
-      const startedAt = performance.now();
-      const result = await originalGenerate(...args);
-      const generated = typeof locations.save === 'function' ? locations.save() : null;
-      saveLocations(catalogId, generated);
+      // Sans identifiant de catalogue, conserver strictement le comportement EPUB.js normal.
+      if (!catalogId) return originalGenerate(...args);
+
+      if (!generationPromise) {
+        const startedAt = performance.now();
+        generationPromise = originalGenerate(...args)
+          .then(result => {
+            const generated = typeof locations.save === 'function' ? locations.save() : null;
+            saveLocations(catalogId, generated);
+            try {
+              localStorage.setItem('comics_last_locations_source', 'generated-background');
+              localStorage.setItem('comics_last_locations_ms', String(Math.round(performance.now() - startedAt)));
+            } catch {}
+            return refreshCurrentLocation().then(() => result);
+          })
+          .catch(error => {
+            console.warn('Indexation EPUB différée indisponible', error);
+            try { localStorage.setItem('comics_last_locations_source', 'generation-error'); } catch {}
+            return null;
+          });
+      }
+
+      // Débloque rendition.display() immédiatement. La reprise utilise directement le CFI sauvegardé.
       try {
-        localStorage.setItem('comics_last_locations_source', 'generated');
-        localStorage.setItem('comics_last_locations_ms', String(Math.round(performance.now() - startedAt)));
+        localStorage.setItem('comics_last_epub_display_mode', 'before-index');
+        localStorage.setItem('comics_last_locations_source', 'generating-background');
       } catch {}
-      return result;
+      return [];
     };
     return book;
   }
