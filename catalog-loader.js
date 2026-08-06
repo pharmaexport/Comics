@@ -10,6 +10,8 @@
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   let catalog = [];
   let activeFilter = 'all';
+  let pdfjsPromise = null;
+  const renderedCovers = new Set();
 
   const progressFor = id => {
     try {
@@ -26,7 +28,13 @@
 
   function coverMarkup(item) {
     const initials = (item.title || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase();
-    return `<div class="kindle-cover-art" data-seed="${escapeHtml(item.id)}"><span>${escapeHtml(initials)}</span><small>${escapeHtml(item.volume ? `TOME ${item.volume}` : item.format.toUpperCase())}</small></div>`;
+    return `
+      <div class="kindle-cover-art" data-seed="${escapeHtml(item.id)}">
+        <canvas class="kindle-cover-canvas" data-cover-id="${escapeHtml(item.id)}" aria-label="Couverture de ${escapeHtml(item.title)}"></canvas>
+        <img class="kindle-cover-image" data-cover-id="${escapeHtml(item.id)}" alt="Couverture de ${escapeHtml(item.title)}" hidden>
+        <div class="kindle-cover-fallback"><span>${escapeHtml(initials)}</span><small>${escapeHtml(item.volume ? `TOME ${item.volume}` : item.format.toUpperCase())}</small></div>
+        <div class="kindle-cover-loading" aria-hidden="true"></div>
+      </div>`;
   }
 
   function cardMarkup(item, compact = false) {
@@ -48,6 +56,96 @@
       </article>`;
   }
 
+  async function pdfjs() {
+    if (!pdfjsPromise) {
+      pdfjsPromise = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs').then(module => {
+        module.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+        return module;
+      });
+    }
+    return pdfjsPromise;
+  }
+
+  function showCover(container, type) {
+    container.classList.add('cover-ready');
+    container.classList.toggle('cover-is-image', type === 'image');
+    container.classList.toggle('cover-is-canvas', type === 'canvas');
+  }
+
+  async function renderPdfCover(item, container) {
+    const canvas = container.querySelector('.kindle-cover-canvas');
+    if (!canvas) return;
+    const module = await pdfjs();
+    const documentTask = module.getDocument({ url: item.url });
+    const document = await documentTask.promise;
+    try {
+      const page = await document.getPage(1);
+      const base = page.getViewport({ scale: 1 });
+      const targetWidth = Math.max(240, Math.round(container.clientWidth * Math.min(devicePixelRatio || 1, 2)));
+      const viewport = page.getViewport({ scale: targetWidth / base.width });
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport }).promise;
+      showCover(container, 'canvas');
+    } finally {
+      await document.destroy();
+    }
+  }
+
+  async function renderEpubCover(item, container) {
+    if (typeof window.ePub !== 'function') throw new Error('EPUB.js indisponible');
+    const image = container.querySelector('.kindle-cover-image');
+    if (!image) return;
+    const book = window.ePub(item.url);
+    try {
+      await book.ready;
+      const coverUrl = await book.coverUrl();
+      if (!coverUrl) throw new Error('Aucune couverture EPUB');
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error('Couverture EPUB inaccessible'));
+        image.src = coverUrl;
+      });
+      image.hidden = false;
+      showCover(container, 'image');
+    } finally {
+      setTimeout(() => { try { book.destroy(); } catch {} }, 1000);
+    }
+  }
+
+  async function hydrateCover(item, container) {
+    const key = `${item.id}:${container.closest('.kindle-book-card')?.classList.contains('compact') ? 'compact' : 'grid'}`;
+    if (renderedCovers.has(key)) return;
+    renderedCovers.add(key);
+    try {
+      if ((item.format || '').toLowerCase() === 'epub') await renderEpubCover(item, container);
+      else await renderPdfCover(item, container);
+    } catch (error) {
+      console.warn(`Couverture indisponible pour ${item.title}`, error);
+      container.classList.add('cover-failed');
+    }
+  }
+
+  function hydrateVisibleCovers(container) {
+    const covers = [...container.querySelectorAll('.kindle-cover-art')];
+    if (!('IntersectionObserver' in window)) {
+      covers.forEach(cover => {
+        const item = catalog.find(entry => entry.id === cover.closest('.kindle-book-card')?.dataset.id);
+        if (item) hydrateCover(item, cover);
+      });
+      return;
+    }
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        const item = catalog.find(value => value.id === entry.target.closest('.kindle-book-card')?.dataset.id);
+        if (item) hydrateCover(item, entry.target);
+      });
+    }, { rootMargin: '240px' });
+    covers.forEach(cover => observer.observe(cover));
+  }
+
   function bindCards(container) {
     container.querySelectorAll('.kindle-book-card').forEach(card => {
       const item = catalog.find(entry => entry.id === card.dataset.id);
@@ -60,9 +158,11 @@
         }
       });
     });
+    hydrateVisibleCovers(container);
   }
 
   function render() {
+    renderedCovers.clear();
     const query = search.value.trim().toLocaleLowerCase('fr');
     const filtered = catalog.filter(item => {
       const text = `${item.title} ${item.subtitle || ''} ${item.authors || ''} ${item.volume || ''}`.toLocaleLowerCase('fr');
