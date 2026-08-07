@@ -7,6 +7,28 @@
 
   let fitted = true;
   let timer = null;
+  let styleWrites = 0;
+  let noopSkips = 0;
+
+  function rememberMetrics() {
+    try {
+      localStorage.setItem('comics_last_fit_style_writes', String(styleWrites));
+      localStorage.setItem('comics_last_fit_noop_skips', String(noopSkips));
+    } catch {}
+  }
+
+  function setStyle(element, property, value, priority = '') {
+    if (!element) return false;
+    const currentValue = element.style.getPropertyValue(property);
+    const currentPriority = element.style.getPropertyPriority(property);
+    if (currentValue === value && currentPriority === priority) {
+      noopSkips += 1;
+      return false;
+    }
+    element.style.setProperty(property, value, priority);
+    styleWrites += 1;
+    return true;
+  }
 
   function innerWidth() {
     const style = getComputedStyle(stage);
@@ -25,12 +47,13 @@
     const cssWidth = parseFloat(canvas.style.width) || canvas.getBoundingClientRect().width || width;
     const cssHeight = parseFloat(canvas.style.height) || canvas.getBoundingClientRect().height || 1;
     const ratio = cssHeight / Math.max(cssWidth, 1);
-    canvas.style.setProperty('width', `${width}px`, 'important');
-    canvas.style.setProperty('height', `${width * ratio}px`, 'important');
-    canvas.style.setProperty('max-width', '100%', 'important');
-    canvas.style.margin = '0';
+    setStyle(canvas, 'width', `${width}px`, 'important');
+    setStyle(canvas, 'height', `${width * ratio}px`, 'important');
+    setStyle(canvas, 'max-width', '100%', 'important');
+    setStyle(canvas, 'margin', '0');
     stage.scrollLeft = 0;
     stage.scrollTop = 0;
+    rememberMetrics();
     return true;
   }
 
@@ -38,35 +61,35 @@
     if (!epubViewer || epubViewer.hidden) return false;
     const width = innerWidth();
     const height = Math.max(1, stage.clientHeight);
-    epubViewer.style.setProperty('width', `${width}px`, 'important');
-    epubViewer.style.setProperty('max-width', '100%', 'important');
-    epubViewer.style.setProperty('height', `${height}px`, 'important');
-    epubViewer.style.margin = '0';
+    setStyle(epubViewer, 'width', `${width}px`, 'important');
+    setStyle(epubViewer, 'max-width', '100%', 'important');
+    setStyle(epubViewer, 'height', `${height}px`, 'important');
+    setStyle(epubViewer, 'margin', '0');
 
     const iframe = epubViewer.querySelector('iframe');
     if (iframe) {
-      iframe.style.setProperty('width', '100%', 'important');
-      iframe.style.setProperty('max-width', '100%', 'important');
-      iframe.style.setProperty('height', '100%', 'important');
-      iframe.style.margin = '0';
-      iframe.style.border = '0';
+      setStyle(iframe, 'width', '100%', 'important');
+      setStyle(iframe, 'max-width', '100%', 'important');
+      setStyle(iframe, 'height', '100%', 'important');
+      setStyle(iframe, 'margin', '0');
+      setStyle(iframe, 'border', '0');
       try {
         const doc = iframe.contentDocument;
         if (doc?.documentElement) {
-          doc.documentElement.style.setProperty('width', '100%', 'important');
-          doc.documentElement.style.setProperty('max-width', '100%', 'important');
-          doc.documentElement.style.setProperty('margin', '0', 'important');
-          doc.documentElement.style.setProperty('padding', '0', 'important');
+          setStyle(doc.documentElement, 'width', '100%', 'important');
+          setStyle(doc.documentElement, 'max-width', '100%', 'important');
+          setStyle(doc.documentElement, 'margin', '0', 'important');
+          setStyle(doc.documentElement, 'padding', '0', 'important');
         }
         if (doc?.body) {
-          doc.body.style.setProperty('width', 'auto', 'important');
-          doc.body.style.setProperty('max-width', 'none', 'important');
-          doc.body.style.setProperty('margin', '0', 'important');
-          doc.body.style.setProperty('padding-left', '16px', 'important');
-          doc.body.style.setProperty('padding-right', '16px', 'important');
+          setStyle(doc.body, 'width', 'auto', 'important');
+          setStyle(doc.body, 'max-width', 'none', 'important');
+          setStyle(doc.body, 'margin', '0', 'important');
+          setStyle(doc.body, 'padding-left', '16px', 'important');
+          setStyle(doc.body, 'padding-right', '16px', 'important');
           doc.querySelectorAll('img,svg,video,table').forEach(node => {
-            node.style.setProperty('max-width', '100%', 'important');
-            node.style.setProperty('height', 'auto', 'important');
+            setStyle(node, 'max-width', '100%', 'important');
+            setStyle(node, 'height', 'auto', 'important');
           });
         }
       } catch {
@@ -74,6 +97,7 @@
       }
     }
     stage.scrollLeft = 0;
+    rememberMetrics();
     return true;
   }
 
