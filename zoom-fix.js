@@ -31,21 +31,26 @@
     if (zoomValue) zoomValue.textContent = `${Math.round(scale * 100)}%`;
   }
 
-  function previewScale(scale, anchor) {
-    const current = displayedScale();
-    const factor = scale / current;
+  function previewScale(scale, anchor, geometry = null) {
+    const baseScale = geometry?.startScale || displayedScale();
+    const factor = scale / baseScale;
     const rect = stage.getBoundingClientRect();
-    const localX = anchor.x - rect.left + stage.scrollLeft;
-    const localY = anchor.y - rect.top + stage.scrollTop;
+    const contentX = geometry?.contentX ?? (anchor.x - rect.left + stage.scrollLeft);
+    const contentY = geometry?.contentY ?? (anchor.y - rect.top + stage.scrollTop);
 
     canvas.style.transformOrigin = '0 0';
     canvas.style.transform = `scale(${factor})`;
     canvas.dataset.previewScale = String(scale);
     updateLabel(scale);
 
+    try {
+      localStorage.setItem('comics_last_zoom_preview_factor', String(factor));
+      localStorage.setItem('comics_last_zoom_anchor_mode', geometry ? 'gesture-origin' : 'live');
+    } catch {}
+
     requestAnimationFrame(() => {
-      stage.scrollLeft = Math.max(0, localX * factor - (anchor.x - rect.left));
-      stage.scrollTop = Math.max(0, localY * factor - (anchor.y - rect.top));
+      stage.scrollLeft = Math.max(0, contentX * factor - (anchor.x - rect.left));
+      stage.scrollTop = Math.max(0, contentY * factor - (anchor.y - rect.top));
     });
   }
 
@@ -67,10 +72,12 @@
   stage.addEventListener('touchstart', event => {
     if (event.touches.length !== 2 || canvas.hidden) return;
     const center = midpoint(event.touches);
+    const rect = stage.getBoundingClientRect();
     gesture = {
       startDistance: distance(event.touches),
       startScale: displayedScale(),
-      center
+      contentX: center.x - rect.left + stage.scrollLeft,
+      contentY: center.y - rect.top + stage.scrollTop
     };
     canvas.style.willChange = 'transform';
     event.preventDefault();
@@ -80,8 +87,7 @@
     if (!gesture || event.touches.length !== 2) return;
     const factor = distance(event.touches) / gesture.startDistance;
     const scale = clamp(gesture.startScale * factor, .25, 4);
-    gesture.center = midpoint(event.touches);
-    previewScale(scale, gesture.center);
+    previewScale(scale, midpoint(event.touches), gesture);
     event.preventDefault();
     event.stopImmediatePropagation();
   }, { passive: false, capture: true });
@@ -124,8 +130,9 @@
   stage.addEventListener('dblclick', event => {
     if (canvas.hidden) return;
     event.preventDefault();
-    const next = displayedScale() < 1.5 ? 2 : 1;
-    previewScale(next, { x: event.clientX, y: event.clientY });
+    const current = displayedScale();
+    const next = current < 1.5 ? 2 : 1;
+    previewScale(next, { x: event.clientX, y: event.clientY }, { startScale: current });
     commitScale(next);
   });
 })();
