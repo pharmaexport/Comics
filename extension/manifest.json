@@ -1,41 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Comics Importer",
-  "version": "0.7.0",
-  "description": "Import privé vers Google Drive. Les importations se déclenchent uniquement depuis l'extension, jamais depuis un site.",
-  "permissions": [
-    "storage",
-    "tabs",
-    "scripting",
-    "identity",
-    "notifications",
-    "alarms"
-  ],
-  "host_permissions": [
-    "https://myreadingmanga.info/*",
-    "https://*.myreadingmanga.info/*",
-    "https://www.googleapis.com/*",
-    "https://oauth2.googleapis.com/*"
-  ],
-  "background": {
-    "service_worker": "background.js",
-    "type": "module"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://myreadingmanga.info/*",
-        "https://*.myreadingmanga.info/*"
-      ],
-      "js": [
-        "content-mrm.js"
-      ],
-      "run_at": "document_idle"
-    }
-  ],
-  "options_page": "options.html",
+  "version": "0.7.1",
+  "description": "Extension temporairement neutralisée par sécurité. Les imports Google Drive doivent être réalisés manuellement.",
+  "permissions": [],
+  "host_permissions": [],
   "action": {
-    "default_title": "Importer un PDF en privé",
+    "default_title": "Import suspendu par sécurité",
     "default_popup": "popup.html"
   }
 }
