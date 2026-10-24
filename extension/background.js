@@ -1,9 +1,10 @@
-const REPO = 'pharmaexport/Comics';
-const CATALOG_PATH = 'catalog.json';
 const DRIVE_FOLDER_ID = '1wkTA4RodQeSyBhSgnwBLvGqqK1e1umv3';
 const MAX_PARALLEL = 3;
 const MIN_PAGE_WIDTH = 420;
 const MIN_PAGE_HEIGHT = 560;
+
+// Purge old GitHub PATs: imports no longer require GitHub repository write access.
+chrome.storage.local.remove(['githubToken']).catch(() => {});
 
 const textEncoder = new TextEncoder();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -32,7 +33,7 @@ function randomString(size = 64) {
 }
 
 async function getSettings() {
-  return chrome.storage.local.get(['googleClientId', 'githubToken', 'googleToken', 'googleTokenExpiresAt']);
+  return chrome.storage.local.get(['googleClientId', 'googleToken', 'googleTokenExpiresAt']);
 }
 
 async function fetchWithRetry(url, options = {}, attempts = 4) {
