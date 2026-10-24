@@ -10,12 +10,9 @@
 </head>
 <body>
   <h1>Comics Importer</h1>
-  <p class="note">Configuration initiale unique. Le Client ID Google sert à autoriser l’envoi vers ton dossier Drive. Le jeton GitHub doit seulement avoir l’autorisation d’écrire le contenu du dépôt <strong>pharmaexport/Comics</strong>.</p>
+  <p class="note">Configuration initiale unique. Le Client ID Google sert à autoriser l’envoi vers ton dossier Drive.</p>
   <label>Client ID OAuth Google
     <input id="googleClientId" placeholder="…apps.googleusercontent.com" autocomplete="off">
-  </label>
-  <label>Jeton GitHub
-    <input id="githubToken" type="password" placeholder="github_pat_…" autocomplete="off">
   </label>
   <button id="save" type="button">Enregistrer</button>
   <p id="status" role="status"></p>
