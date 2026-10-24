@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Comics Importer",
-  "version": "0.6.1",
-  "description": "Import MyReadingManga vers un dossier Google Drive privé, sans jeton GitHub ni publication de liens Drive.",
+  "version": "0.7.0",
+  "description": "Import privé vers Google Drive. Les importations se déclenchent uniquement depuis l'extension, jamais depuis un site.",
   "permissions": [
     "storage",
     "tabs",
@@ -15,23 +15,13 @@
     "https://myreadingmanga.info/*",
     "https://*.myreadingmanga.info/*",
     "https://www.googleapis.com/*",
-    "https://oauth2.googleapis.com/*",
-    "https://pharmaexport.github.io/*"
+    "https://oauth2.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "content_scripts": [
-    {
-      "matches": [
-        "https://pharmaexport.github.io/*"
-      ],
-      "js": [
-        "content-app.js"
-      ],
-      "run_at": "document_idle"
-    },
     {
       "matches": [
         "https://myreadingmanga.info/*",
@@ -45,6 +35,7 @@
   ],
   "options_page": "options.html",
   "action": {
-    "default_title": "Comics Importer"
+    "default_title": "Importer un PDF en privé",
+    "default_popup": "popup.html"
   }
 }
