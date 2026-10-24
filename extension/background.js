@@ -177,12 +177,7 @@ async function uploadDrive(blob, fileName) {
   const uploaded = await fetchWithRetry(sessionUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'Content-Length': String(blob.size) }, body: blob }, 4);
   if (!uploaded.ok) throw new Error(`Téléversement Drive impossible (${uploaded.status}).`);
   const file = await uploaded.json();
-  const permission = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'anyone', role: 'reader' })
-  }, 3);
-  if (!permission.ok) console.warn('Le fichier a été envoyé, mais le partage public a échoué.', permission.status);
+  // Security: Drive uploads remain private; never create an anyone permission.
   return file;
 }
 
@@ -195,44 +190,7 @@ function encodeBase64Utf8(value) {
   return b64(new TextEncoder().encode(value));
 }
 
-async function updateCatalog({ title, driveFile }) {
-  const { githubToken } = await getSettings();
-  if (!githubToken) throw new Error('Configure d’abord le jeton GitHub dans les options de l’extension.');
-  const headers = { Authorization: `Bearer ${githubToken}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const get = await fetchWithRetry(`https://api.github.com/repos/${REPO}/contents/${CATALOG_PATH}?ref=main`, { headers }, 3);
-    if (!get.ok) throw new Error(`Catalogue GitHub inaccessible (${get.status}).`);
-    const current = await get.json();
-    const catalog = JSON.parse(decodeBase64Utf8(current.content));
-    const id = slug(title);
-    const entry = {
-      id,
-      title,
-      volume: '',
-      subtitle: 'Import MyReadingManga',
-      authors: '',
-      format: 'pdf',
-      driveFileId: driveFile.id,
-      driveUrl: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.id}/view`,
-      url: `https://drive.usercontent.google.com/download?id=${driveFile.id}&export=download&confirm=t`,
-      source: 'myreadingmanga',
-      importedAt: new Date().toISOString()
-    };
-    const index = catalog.findIndex(item => item.id === id);
-    if (index >= 0) catalog[index] = { ...catalog[index], ...entry }; else catalog.unshift(entry);
-
-    const put = await fetch(`https://api.github.com/repos/${REPO}/contents/${CATALOG_PATH}`, {
-      method: 'PUT',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: `Ajouter ${title} depuis MyReadingManga`, content: encodeBase64Utf8(`${JSON.stringify(catalog, null, 2)}\n`), sha: current.sha, branch: 'main' })
-    });
-    if (put.ok) return;
-    if (put.status !== 409 && put.status !== 422) throw new Error(`Mise à jour GitHub impossible (${put.status}).`);
-    await sleep(700 * (attempt + 1));
-  }
-  throw new Error('Le catalogue a changé pendant l’import. Réessaie une fois.');
-}
+// Security: no public catalog update is performed for private Drive uploads.
 
 async function waitForCollection(tabId) {
   let lastError;
@@ -270,10 +228,9 @@ async function importMrm(url) {
   const pdf = makePdf(pages);
   progress(83, 'Envoi vers Drive');
   const driveFile = await uploadDrive(pdf, `${title}.pdf`);
-  progress(94, 'Mise à jour de la bibliothèque');
-  await updateCatalog({ title, driveFile });
+  progress(94, 'Archivage privé dans Google Drive');
   progress(100, 'Import terminé');
-  return { ok: true, message: `${title} : ${pages.length} planches enregistrées dans Imports MyReadingManga et ajoutées à Comics.`, driveFileId: driveFile.id };
+  return { ok: true, message: `${title} : ${pages.length} planches enregistrées en privé dans Imports MyReadingManga.`, driveFileId: driveFile.id };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
