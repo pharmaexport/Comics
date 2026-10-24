@@ -10,20 +10,20 @@
     <h3>Importer depuis MyReadingManga</h3>
     <p>${isIOS
       ? 'Sur iPhone, colle l’adresse puis ouvre la publication. L’import automatique nécessite encore l’installation initiale d’un raccourci iOS.'
-      : 'Copie l’adresse de la publication puis ouvre l’icône Comics Importer dans Chrome pour lancer un import privé.'}</p>
+      : 'L’import automatique vers Drive est suspendu par sécurité. Ouvre la publication et exporte un PDF, puis ajoute-le manuellement à Drive.'}</p>
     <div class="mrm-input-line">
       <input id="mrmUrl" type="text" inputmode="url" enterkeyhint="go" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="https://myreadingmanga.info/…" aria-label="Adresse MyReadingManga">
       <button id="mrmPaste" type="button">Coller</button>
     </div>
-    <button id="mrmImport" class="mrm-import-button" type="button">${isIOS ? 'Ouvrir la publication' : 'Copier l’adresse'}</button>
+    <button id="mrmImport" class="mrm-import-button" type="button">Ouvrir la publication</button>
     <div class="mrm-progress" hidden><i></i></div>
     <p id="mrmMessage" class="mrm-message" role="status">${isIOS
       ? 'Le raccourci iOS n’est pas encore installé sur cet iPhone.'
-      : 'Aucun site web ne peut déclencher un accès à ton Drive : ouvre l’extension depuis la barre Chrome.'}</p>
+      : 'L’import automatique vers Drive est suspendu. Utilise un export PDF manuel.'}</p>
     <div class="mrm-actions">
       ${isIOS
         ? '<button class="mrm-install" id="mrmIOSHelp" type="button">Configurer l’import iPhone</button>'
-        : '<a class="mrm-install" href="https://github.com/pharmaexport/Comics/tree/main/extension" target="_blank" rel="noopener">Installer l’extension</a>'}
+        : '<a class="mrm-install" href="https://github.com/pharmaexport/Comics/blob/main/myreadingmanga-import.user.js" target="_blank" rel="noopener">Guide du script d’export PDF</a>'}
     </div>
     <small>Les fichiers importés sont destinés au dossier Drive « Imports MyReadingManga ».</small>`;
   panel.appendChild(section);
@@ -95,10 +95,8 @@
       window.open(url.href, '_blank', 'noopener,noreferrer');
       return;
     }
-    navigator.clipboard.writeText(url.href).then(
-      () => setMessage('Adresse copiée. Ouvre l’extension Comics Importer (icône Chrome), colle-la puis valide.', 'success'),
-      () => setMessage('Copie cette adresse manuellement, puis ouvre l’extension Comics Importer.', 'error')
-    );
+    setMessage('Publication ouverte : exporte le PDF localement, puis transfère-le manuellement vers Drive.', 'success');
+    window.open(url.href, '_blank', 'noopener,noreferrer');
   });
 
   input.addEventListener('keydown', event => {
