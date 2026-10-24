@@ -1,27 +1,45 @@
 {
   "manifest_version": 3,
   "name": "Comics Importer",
-  "version": "0.6.0",
-  "description": "Import MyReadingManga vers Drive et Comics avec extraction renforcée, reprise réseau, journalisation et diagnostics de qualité.",
-  "permissions": ["storage", "tabs", "scripting", "identity", "notifications", "alarms"],
+  "version": "0.6.1",
+  "description": "Import MyReadingManga vers un dossier Google Drive privé, sans jeton GitHub ni publication de liens Drive.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "identity",
+    "notifications",
+    "alarms"
+  ],
   "host_permissions": [
     "https://myreadingmanga.info/*",
     "https://*.myreadingmanga.info/*",
     "https://www.googleapis.com/*",
     "https://oauth2.googleapis.com/*",
-    "https://api.github.com/*",
     "https://pharmaexport.github.io/*"
   ],
-  "background": { "service_worker": "background.js", "type": "module" },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
   "content_scripts": [
     {
-      "matches": ["https://pharmaexport.github.io/*"],
-      "js": ["content-app.js"],
+      "matches": [
+        "https://pharmaexport.github.io/*"
+      ],
+      "js": [
+        "content-app.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://myreadingmanga.info/*", "https://*.myreadingmanga.info/*"],
-      "js": ["content-mrm.js"],
+      "matches": [
+        "https://myreadingmanga.info/*",
+        "https://*.myreadingmanga.info/*"
+      ],
+      "js": [
+        "content-mrm.js"
+      ],
       "run_at": "document_idle"
     }
   ],
