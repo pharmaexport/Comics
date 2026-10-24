@@ -41,10 +41,7 @@
     "volume": "",
     "subtitle": "",
     "authors": "David Foenkinos",
-    "format": "epub",
-    "driveFileId": "143hz6XXKMebyTIRW1cwkveRPn8MwBe4G",
-    "driveUrl": "https://drive.google.com/file/d/143hz6XXKMebyTIRW1cwkveRPn8MwBe4G/view?usp=drivesdk",
-    "url": "https://drive.usercontent.google.com/download?id=143hz6XXKMebyTIRW1cwkveRPn8MwBe4G&export=download&confirm=t"
+    "format": "epub"
   },
   {
     "id": "guillaume-musso-quelqu-un-d-autre-2024",
@@ -53,10 +50,7 @@
     "subtitle": "Édition 2024",
     "authors": "Guillaume Musso",
     "format": "epub",
-    "cover": "https://books.google.com/books/content?id=qYTnEAAAQBAJ&printsec=frontcover&img=1&zoom=2&source=gbs_api",
-    "driveFileId": "1jPSH47RsZAA4Sq447wW_UEqiteWh5Iy1",
-    "driveUrl": "https://drive.google.com/file/d/1jPSH47RsZAA4Sq447wW_UEqiteWh5Iy1/view?usp=drivesdk",
-    "url": "https://drive.usercontent.google.com/download?id=1jPSH47RsZAA4Sq447wW_UEqiteWh5Iy1&export=download&confirm=t"
+    "cover": "https://books.google.com/books/content?id=qYTnEAAAQBAJ&printsec=frontcover&img=1&zoom=2&source=gbs_api"
   },
   {
     "id": "eric-chacour-ce-que-je-sais-de-toi-2023",
@@ -64,9 +58,6 @@
     "volume": "",
     "subtitle": "Édition 2023",
     "authors": "Éric Chacour",
-    "format": "epub",
-    "driveFileId": "1kJEBaO4HXnrVIyfx4A-7uaIelFv0rRJX",
-    "driveUrl": "https://drive.google.com/file/d/1kJEBaO4HXnrVIyfx4A-7uaIelFv0rRJX/view?usp=drivesdk",
-    "url": "https://drive.usercontent.google.com/download?id=1kJEBaO4HXnrVIyfx4A-7uaIelFv0rRJX&export=download&confirm=t"
+    "format": "epub"
   }
 ]
