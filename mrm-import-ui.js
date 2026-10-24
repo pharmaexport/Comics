@@ -2,7 +2,6 @@
   const panel = document.querySelector('.kindle-source-panel');
   if (!panel || document.getElementById('mrmImporter')) return;
 
-  let extensionReady = false;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const section = document.createElement('section');
   section.id = 'mrmImporter';
@@ -11,16 +10,16 @@
     <h3>Importer depuis MyReadingManga</h3>
     <p>${isIOS
       ? 'Sur iPhone, colle l’adresse puis ouvre la publication. L’import automatique nécessite encore l’installation initiale d’un raccourci iOS.'
-      : 'Colle l’adresse d’une de tes publications puis lance l’import automatique vers Drive et la bibliothèque Comics.'}</p>
+      : 'Copie l’adresse de la publication puis ouvre l’icône Comics Importer dans Chrome pour lancer un import privé.'}</p>
     <div class="mrm-input-line">
       <input id="mrmUrl" type="text" inputmode="url" enterkeyhint="go" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="https://myreadingmanga.info/…" aria-label="Adresse MyReadingManga">
       <button id="mrmPaste" type="button">Coller</button>
     </div>
-    <button id="mrmImport" class="mrm-import-button" type="button">${isIOS ? 'Ouvrir la publication' : 'Importer'}</button>
+    <button id="mrmImport" class="mrm-import-button" type="button">${isIOS ? 'Ouvrir la publication' : 'Copier l’adresse'}</button>
     <div class="mrm-progress" hidden><i></i></div>
     <p id="mrmMessage" class="mrm-message" role="status">${isIOS
       ? 'Le raccourci iOS n’est pas encore installé sur cet iPhone.'
-      : 'Recherche de l’extension…'}</p>
+      : 'Aucun site web ne peut déclencher un accès à ton Drive : ouvre l’extension depuis la barre Chrome.'}</p>
     <div class="mrm-actions">
       ${isIOS
         ? '<button class="mrm-install" id="mrmIOSHelp" type="button">Configurer l’import iPhone</button>'
@@ -76,19 +75,6 @@
     setMessage('Je ne peux pas installer un raccourci iOS à distance. Il doit être ajouté une fois sur cet iPhone avant qu’un import en un clic soit possible.', 'error');
   });
 
-  window.addEventListener('message', event => {
-    if (event.source !== window) return;
-    if (event.data?.type === 'COMICS_EXTENSION_READY') {
-      extensionReady = true;
-      setMessage('Extension prête. Tu peux importer en un clic.', 'success');
-    }
-    if (event.data?.type === 'COMICS_IMPORT_MRM_RESULT') {
-      button.disabled = false;
-      progress.hidden = true;
-      setMessage(event.data.message || (event.data.ok ? 'Import terminé.' : 'Échec de l’import.'), event.data.ok ? 'success' : 'error');
-      if (event.data.ok) setTimeout(() => location.reload(), 1800);
-    }
-  });
 
   button.addEventListener('click', () => {
     let url;
@@ -109,15 +95,10 @@
       window.open(url.href, '_blank', 'noopener,noreferrer');
       return;
     }
-    if (!extensionReady) {
-      setMessage('L’extension Comics Importer n’est pas installée ou n’est pas active.', 'error');
-      return;
-    }
-    button.disabled = true;
-    progress.hidden = false;
-    progressBar.style.width = '12%';
-    setMessage('Ouverture de la page et préparation de l’import…');
-    window.postMessage({ type: 'COMICS_IMPORT_MRM', url: url.href }, '*');
+    navigator.clipboard.writeText(url.href).then(
+      () => setMessage('Adresse copiée. Ouvre l’extension Comics Importer (icône Chrome), colle-la puis valide.', 'success'),
+      () => setMessage('Copie cette adresse manuellement, puis ouvre l’extension Comics Importer.', 'error')
+    );
   });
 
   input.addEventListener('keydown', event => {
