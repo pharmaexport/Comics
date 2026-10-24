@@ -235,7 +235,23 @@ async function importMrm(url) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Only the local extension popup may request a Drive upload.
+  if (message?.type === 'IMPORT_MRM' && (sender.id !== chrome.runtime.id || sender.url !== chrome.runtime.getURL('popup.html'))) {
+    sendResponse({ ok: false, message: 'Import non autorisé depuis une page web.' });
+    return;
+  }
+
   if (message?.type !== 'IMPORT_MRM') return;
-  importMrm(message.url).then(sendResponse).catch(error => sendResponse({ ok: false, message: error.message || 'Échec de l’import.' }));
+  let safeUrl;
+  try {
+    safeUrl = new URL(String(message.url || '').trim());
+    if (safeUrl.protocol !== 'https:' || !/(^|\\.)myreadingmanga\\.info$/i.test(safeUrl.hostname) || safeUrl.href.length > 2048) {
+      throw new Error('Domaine non autorisé');
+    }
+  } catch {
+    sendResponse({ ok: false, message: 'Utilise une adresse HTTPS valide myreadingmanga.info.' });
+    return;
+  }
+  importMrm(safeUrl.href).then(sendResponse).catch(error => sendResponse({ ok: false, message: error.message || 'Échec de l’import.' }));
   return true;
 });
